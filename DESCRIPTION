@@ -17,3 +17,16 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
+Imports: 
+    DHARMa,
+    dplyr,
+    emmeans,
+    ggpubr,
+    glmmTMB,
+    here,
+    lme4,
+    multcomp,
+    MuMIn,
+    stringr
+Depends: 
+    ggplot2
