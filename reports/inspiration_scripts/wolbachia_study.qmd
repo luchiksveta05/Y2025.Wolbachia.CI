@@ -1,0 +1,577 @@
+---
+title: "Genetic diversity analyses for Wolbachia study"
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    number-sections: true
+    number-depth: 4
+    embed-resources: true
+    math: true
+fig-dpi: 300
+editor: visual
+editor_options: 
+  chunk_output_type: console
+execute: 
+  cache: true
+bibliography: wolb.bib
+csl: genetics.csl
+---
+
+```{r inits}
+#| include: false
+library(knitr)
+library(zoo)
+library(RColorBrewer)
+library(data.table)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+require(readODS)
+require(poolfstat)
+require(vioplot)
+require(data.table)
+library(ggplot2)
+library(ggrepel)
+#source("~/Bureau/CODES/PROJETS_GIT/baypass/utils_private/private_Rutils.R")
+#source("~/Bureau/CODES/PROJETS_GIT/baypass/utils/baypass_utils.R")
+require(R.utils)
+wd="/media/mathieu/DD12T_1/DSU/WOLBACHIA/ANA_102024"
+#if(System$getHostname()=="cbgp-b-gautierm"){
+# wd="/media/mathieu/SSD_2T/PPM/TANGUY_Z_PORTUGAL/ana_sept2024/"
+#}else{wd="/media/mathieu/SSD_2T/PPM/TANGUY_Z_PORTUGAL/ana_sept2024/"}
+det.sample=read_ods("DETsample_wolbachia_project.ods",as_tibble=F)
+```
+
+This document summarizes result from the joint analysis of Pool-Seq and Ind-Seq samples of *D. suzukii* including *Wolbachia* endosymbionts together with *D. subpulchrella* and *D. similans* samples representative of outgroup species as detailed in Table @tbl-detsample. These include 12 newly sequenced *D. suzukii* lines.
+
+```{r detsample}
+#| echo: false
+#| tbl-cap: "Details on the Whole-Genome Sequence samples selected for the study. Sequencing data descriptors were estimated using *fastp* [v0.23.4, @ChenFastp2018] ran with default option."
+#| tbl-cap-location: bottom
+#| tbl-colwidths: false
+#| label: tbl-detsample
+tmp=det.sample[,1:7]
+tmp$`Seq. Type`=paste0(tmp$`Seq. Type`," (",det.sample$SeqType,")")
+tmp$Ref[grepl("Olaz",tmp$Ref)]="@olazcuaga_whole-genome_2020"
+tmp$Ref[grepl("Omet",tmp$Ref)]="@ometto_linking_2013"
+tmp$Ref[grepl("Camu",tmp$Ref)]="@Camus2024"
+tmp$Ref[grepl("Lew",tmp$Ref)]="@lewald_population_2021"
+tmp$Ref[grepl("Tur",tmp$Ref)]="@Turelli2018"
+tmp$`Nb. reads`=format(det.sample$`TotReadsInit (M)`*1e6,big.mark=",")
+tmp$`%GC`=format(det.sample$`%GCInit`,digits=3)
+tmp$`%Dup`=format(det.sample$PercentDup,digits=2)
+tmp$`%Overlap`=format(100-det.sample$PercentNonOverlap,digits=2)
+kable(tmp,align="llcccll")
+rm(tmp)
+```
+
+# Mapping onto the *IsoJap1* chromosome-level assembly
+
+WGS data were first filtered using *fastp* [v0.23.2; @ChenFastp2018] run with default options to remove contaminating adapter sequences and trim for poor quality bases (i.e., with a phred quality score $<$15). Read pairs with either one read containing more than 40% low-quality bases or more than 5 N bases were removed. The filtered reads were then mapped onto the new chromosome-level IsoJap1 assembly [@Camus2024], complemented with the complete mitochondrial sequence of *D. suzukii* (GenBank Accession ID: *KU588141*) and the complete sequence for the Wolbachia endosymbiont (wRI strain) of *D. simulans* (NCBI ID: *GCA\_000022285*), a Wolbachia strain closely related to that of *D. suzukii* one [@Turelli2018], using the default options of *bwa-mem2* [v2.2.1; @Vasimuddin2019]. PCR duplicates were further removed using the *view* and *markdup* programs of *SAMtools* [v1.19; @LiSamtools2009]. The mean realized coverage was finally estimated using *mosdepth* [v0.3.6; @Pedersen2018] with the option *-Q 20* to ignore reads with low mapping quality. 
+
+## Realized coverage
+
+```{r detsample}
+#| echo: false
+#| tbl-cap: "Realized coverage of all the Whole-Genome Sequence samples. Mean coverages were estimated  with *mosdepth* [v0.3.6; @Pedersen2018] using the *bam* files obtained from the mapping of the filtered raw reads on the new IsoJap1 chromosome-level assembly [@Camus2024] complemented with the complete mitochondrial sequence of *D. suzukii* (GenBank Accession ID: *KU588141*) and the complete sequence for the Wolbachia endosymbiont (wRI strain) of *D. simulans* (NCBI ID: *GCA\_000022285*); for the i) Wolbachia (W), ii) autosomes (A) consisting of chr2L, chr2R, chr3, and chr4 chromosomes; iii) X-chromosome; and iv) the Mitochondria (M)."
+#| tbl-cap-location: bottom
+#| tbl-colwidths: false
+#| label: tbl-realizedcov
+tmp=det.sample[,c(1:3,8:12)]
+colnames(tmp)[-1:-3]=gsub("cov","",colnames(tmp)[-1:-3]) 
+for(i in 4:8){tmp[,i]=round(tmp[,i],digits = 2)}
+kable(tmp,align="llcccll")
+rm(tmp)
+```
+
+## wRI sequence coverage
+
+The variation of coverage for the different individual was estimated with *samtools* using the following command:
+
+```{bash}
+#| eval: false
+for ii in *.bam
+do
+samtools view -f 0x2 -O BAM $ii wRI |samtools depth - > $ii.wRI.depth 
+done
+```
+
+and plotted per consecutive windows of 1 kb for all samples
+
+```{r wRIcoverage}
+col.sample=rep(3,nrow(det.sample))
+col.sample[which(grepl("Om300",det.sample$`Sample ID`) | grepl("Iso-",det.sample$`Sample ID`))]=4
+col.sample[which(grepl("Col-",det.sample$`Sample ID`))]=5
+col.sample[which(grepl("sub",det.sample$`Sample ID`) | grepl("CN-Kun",det.sample$`Sample ID`))]=8
+col.sample[which(grepl("sim",det.sample$`Sample ID`))]=7
+names(col.sample)=det.sample$`Sample ID`
+
+for(s in det.sample$`Sample ID`){
+ tmp=read.table(gzfile(paste0(wd,"/bam_files/",s,".dedup.bam.wRI.depth.gz")))
+ tmp.val=rollmean(tmp[,2],k=1000)
+# tmp.x=seq(1,length(tmp.val),500)
+ tmp.x=1:length(tmp.val)
+ plot(tmp.val[tmp.x]/1e3,rollmean(tmp[,3],k=1000)[tmp.x],pch=".",
+      main=s,col=col.sample[s],xlab="Position (in kb)",ylab="Coverage (per 1 kb windows)")
+ }
+```
+
+It seems there are some structural variants in the *cif* regions?
+
+# Estimation of nucleotide diversity on isofemale lines and comparison with other Pool-Seq samples
+
+Standard nucleotide diversity statistics were first directly estimated from each *bam* file of the 20 Pool-Seq samples (Table @tbl-detsample), for non-overlapping windows (10 kb, 50 kb or 100 kb) over the whole genome, using the estimators for Pool-Seq data developed by @Ferretti2013. Only positions covered by at least two reads and less than 250 reads with a min quality > 20 were considered in the computations (*-mincov 2 -maxcov 250 -minqual 20* options) and windows with less than 9,000 remaining positions were discarded. 
+
+```{r nucdiv}
+#| fig-height: 16 
+#| fig-width: 16 
+#| fig-cap: "Distribution of the estimated nucleotide diversity ($\\theta_\\pi$) for the different chromosomes. Nucleotide diversity was estimated for non-overlapping 50 kb windows using the estimators for Pool-Seq data implemented in *npstat* [@Ferretti2013]. Windows with less than 25,000 callable sites were discarded from representation."
+#| fig-cap-location: bottom
+#| label: fig-nucdiv
+#| echo: false
+
+chr.list=c("chr2L","chr2R","chr3","chrX")#,"chr4")
+pop.list=det.sample$`Sample ID`[det.sample$`Seq. Type`!="IndSeq"]
+colony.idx=which(grepl("Col-",pop.list))
+iso.idx=which(grepl("Om300",pop.list) | grepl("Iso-",pop.list))
+dsub.idx=which(grepl("sub",pop.list))
+popsuz.idx=(1:length(pop.list))[-c(iso.idx,colony.idx,dsub.idx)]
+col.pool=rep(3,length(pop.list))
+col.pool[iso.idx]=4
+col.pool[colony.idx]=5
+col.pool[dsub.idx]=7
+
+win.length=10000
+##recup infos lsous form de liste par scaffold avec conversion position (car mapping sur contigs)
+win.det=NULL
+dum.mat=matrix(NA,0,length(pop.list))
+colnames(dum.mat)=pop.list
+all.estim=list(length=dum.mat,read_depth=dum.mat,S=dum.mat,Watterson=dum.mat,Pi=dum.mat,Tajima_D=dum.mat)
+for(s in 1:length(chr.list)){
+ for(p in 1:length(pop.list)){
+   tmp.file=paste0(wd,"/ana_npstat/",pop.list[p],".",chr.list[s],".",win.length,".stats.gz")
+   tmp.res=read.table(gzfile(tmp.file),h=T)[,c(2,4,5,6,7,8)]
+   if(p==1){
+     tmp.win.fin=(1:nrow(tmp.res))*win.length
+     tmp.win.deb=tmp.win.fin-win.length+1 
+     tmp.win.det=data.frame(ctg=rep(chr.list[s],nrow(tmp.res)),start=tmp.win.deb,end=tmp.win.fin)
+     if(is.null(win.det)){win.det=tmp.win.det}else{win.det=rbind(win.det,tmp.win.det)}
+      tmp.all.estim=array(0,dim=c(nrow(tmp.res),ncol(tmp.res),length(pop.list)),
+                                    dimnames = list(rownames(tmp.res),colnames(tmp.res),pop.list))
+       tmp.all.estim[,,p]=as.matrix(tmp.res)
+     }else{
+      tmp.idx=1:min(nrow(tmp.all.estim),nrow(tmp.res))
+      tmp.all.estim[tmp.idx,,p]=as.matrix(tmp.res)[tmp.idx,]
+     }
+   }
+    for(j in names(all.estim)){
+      all.estim[[j]]=rbind(all.estim[[j]],tmp.all.estim[,j,])
+    }
+}
+
+win.na=all.estim$length<9000
+tmp.pi=all.estim$Pi ; tmp.pi[win.na]=NA
+pi.lim=c(0,max(tmp.pi),na.rm=T)
+idx.plot=c(dsub.idx,iso.idx,colony.idx,popsuz.idx)
+
+layout(matrix(1:4,2,2))
+for(s in 1:length(chr.list)){
+vioplot(tmp.pi[win.det$ctg==chr.list[s],idx.plot],col=col.pool[idx.plot],las=2,
+        ylab=expression(theta[pi]),main=chr.list[s])
+}  
+
+tmp.theta=all.estim$Watterson ; tmp.theta[win.na]=NA
+tmp.depth=all.estim$read_depth ; tmp.depth[win.na]=NA
+#tmp.S=all.estim$S ; tmp.S[win.na]=NA
+
+nucdiv.sumstats=cbind(paste0(colSums(win.na[win.det$ctg!="chrX",])," (",colSums(win.na[win.det$ctg=="chrX",]),")"),
+                      paste0(formatC(apply(tmp.depth[win.det$ctg!="chrX",],2,median,na.rm=T),format="f",digits=1)," (",
+                             formatC(apply(tmp.depth[win.det$ctg=="chrX",],2,median,na.rm=T),format="f",digits=1),")"),   
+#                      paste0(formatC(apply(tmp.S[win.det$ctg!="chrX",],2,median,na.rm=T),format="f",digits=1)," (",
+#                             formatC(apply(tmp.S[win.det$ctg=="chrX",],2,median,na.rm=T),format="f",digits=1),")"),               
+                      paste0(formatC(apply(1000*tmp.pi[win.det$ctg!="chrX",],2,median,na.rm=T),format="f",digits=2)," (",
+                             formatC(apply(1000*tmp.pi[win.det$ctg=="chrX",],2,median,na.rm=T),format="f",digits=2),")"),
+                      paste0(formatC(apply(1000*tmp.theta[win.det$ctg!="chrX",],2,median,na.rm=T),format="f",digits=2)," (",
+                             formatC(apply(1000*tmp.theta[win.det$ctg=="chrX",],2,median,na.rm=T),format="f",digits=2),")")
+                      )
+rownames(nucdiv.sumstats)=colnames(tmp.theta)
+```
+
+As expected and shown in Figures @fig-nucdiv and @fig-nucchrdistrib and Table @tbl-nucdiv, all isofemale lines and colonies are depleted in genetic diversity (Figures @fig-nucdiv and @fig-nucchrdistrib) compared to wild population samples.....  
+  
+
+```{r nucdivsummary}
+#| echo: false
+#| tbl-cap: "Summary of the *npstat* [@Ferretti2013] results for the estimation of nucleotide diversity for the Pool-Seq samples. The table gives i) the number non-overlapping 10 kb windows for autosome (and the X chromosome in parentheses) with more than 9,000 callable sites; ii) the median (average) window sequencing coverage; iii) the median estimated $\\theta_\\pi$ over windows; and iv) the median estimated $\\theta_W$ over windows."
+#| tbl-cap-location: bottom
+#| tbl-colwidths: false
+#| label: tbl-nucdiv
+colnames(nucdiv.sumstats)=c("Nb. win (X)","median depth (X)","median Theta_Pi (X)","median Theta_W (X)")
+kable(nucdiv.sumstats[idx.plot,],align="llcccll",format="html")
+```
+
+```{r nucdiv_perchr}
+#| echo: false
+#| fig-height: 16 
+#| fig-width: 16 
+#| fig-cap: "Distribution of the estimated nucleotide diversity ($\\theta_\\pi$) over the different chromosomes. Nucleotide diversity was estimated for non-overlapping 10 kb windows using the estimators for Pool-Seq data implemented in *npstat* [@Ferretti2013]. Windows with less than 9,000 callable sites were discarded from representation."
+#| fig-cap-location: bottom
+#| label: fig-nucchrdistrib
+layout(matrix(1:4,2,2))
+for(s in 1:length(chr.list)){
+  matplot(tmp.pi[win.det$ctg==chr.list[s],idx.plot],col=col.pool[idx.plot],las=2,ylab=expression(theta[pi]),main=chr.list[s])
+}  
+```
+
+# Structuring of genetic diversity
+
+## (Host) autosome on *D. suzukii* samples
+
+Variant calling was performed on the *chr2L*, *chr2R*, *chr3* and *chr4* autosomes using the Haplotype Caller implemented in *FreeBayes* [v1.3.6; @Garrison2012], which does not require realignment around indels and base recalibration, jointly considering all 19 Pool-Seq and 4 Ind-Seq alignment files from *D. suzukii* samples, with the following options *-K -C 1 -F 0.01 -G 5 --limit-coverage 500 -n 4 -m 30 -q 20*. To improve computational efficiency, variant calling was performed in parallel on a computer grid for the 590 non-overlapping 250 kb windows covering the chosen autosomes. The resulting vcf files were reordered and concatenated using the *view* and *concat* programs of *bcftools* [v1.20; @danecek_twelve_2021]. Here is a summary of the raw characteristics of the discovered variants (i.e., before filtration):
+
+```{r sum_autosnp_bef_filt}
+#| echo: true
+tmp=fread(paste0(wd,"/chr.summary.gz"),h=T,data.table=F)
+sort(table(tmp$TYPE),decreasing=T)
+#Number of samples with data
+summary(tmp$NS)
+quantile(tmp$NS,probs=c(0.01,0.05,0.1,0.25,0.75,0.9,0.95,0.99))
+#Total read depth at the locus
+quantile(tmp$DP[tmp$QUAL>20],probs=c(1e-3,1e-2,1-1e-2,1-1e-3))
+#standard filters on
+  #QUAL="Quality"
+  #SAF="Number of alternate observations on the forward strand"
+  #SAR="Number of alternate observations on the reverse strand"
+  #RPR="Reads Placed Right: number of reads supporting the alternate balanced to the right (3') of the alternate allele"
+  #RPL="Reads Placed Left: number of reads supporting the alternate balanced to the left (5') of the alternate allele"
+sum(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1)
+mean(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1)
+mean(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1 & tmp$DP>100 & tmp$DP<3000)
+rm(tmp)
+```
+
+Based on these results, the *vcf* was further filtered using a custom *awk* script to keep only bi-allelic variants (including the reference allele) with *QUAL>20, NS>21, 100<DP<3000, SAF>0, SAR>0, RPR>1, RPL>1, EPP>0, SRP>0* and a global MAF computed from the overall read counts >0.01:
+
+```{bash}
+#| eval: false
+gunzip -c chr*vcf.gz | gawk -f filtersnp.awk -v minns=21 -v maxdp=3000 |gzip -c > auto.filtered.vcf.gz 
+```
+
+The resulting filtered *vcf* was analyzed with *poolfstat* utilities.
+
+
+```{r autopooldata}
+hap.size=gsub("[()]","",det.sample$`Haploid Size (X)`)
+hap.size=matrix(as.numeric(unlist(strsplit(hap.size," "))),ncol=2,byrow = T)
+rownames(hap.size)=det.sample$`Sample ID`
+sample.info=hap.size[read.table(paste0(wd,"/res_vcf/sample.ord"))[,1],]
+auto.pooldata=vcf2pooldata(vcf.file=paste0(wd,"/auto.filtered.vcf.gz"),poolsizes = sample.info[,1],poolnames = rownames(sample.info))
+```
+
+
+```{r autopca}
+#| echo: false
+#| fig-height: 16 
+#| fig-width: 24 
+#| fig-cap: "Random allele PCA of the 19 Pool-Seq and 4 Ind-Seq *D. suzukii* samples."
+#| fig-cap-location: bottom
+#| label: fig-autopca
+#boxplot(auto.pooldata@readcoverage)
+auto.pca=randomallele.pca(auto.pooldata,plot.pcs = NULL)
+pch.type =rep(16,auto.pooldata@npools) ; pch.type[auto.pooldata@poolsizes==2]=17
+pch.col  = rep(3,auto.pooldata@npools)
+pch.col[which(grepl("Col-",auto.pooldata@poolnames))]=5
+pch.col[which(grepl("Om300",auto.pooldata@poolnames) | grepl("Iso-",auto.pooldata@poolnames))]=4
+#plot(auto.pca$pop.loadings[,1:2],xlab=paste0("PC1 (",round(auto.pca$perc.var[1],2),"%)"),
+#     ylab=paste0("PC2 (",round(auto.pca$perc.var[2],2),"%)"),
+#     pch=pch.type,col=pch.col)
+#text(auto.pca$pop.loadings[,1:2],auto.pooldata@poolnames,cex=0.5,pos=c(1,3)[order(auto.pca$pop.loadings[,1])%%2+1])
+
+scree_data <- data.frame(PC = factor(paste0("PC", 1:length(auto.pca$perc.var)),levels = paste0("PC", 1:length(auto.pca$perc.var))),Variance = auto.pca$perc.var)
+# Plot the scree plot
+tmp1<-ggplot(scree_data, aes(x = PC, y = Variance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
+  geom_point(size = 2) +  # Add points to show individual PC values
+  geom_line(group = 1, color = "black") +  # Line connecting the points
+  theme_minimal() +
+  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
+  ylim(0, max(auto.pca$perc.var))
+
+data=as.data.frame(auto.pca$pop.loadings)
+colnames(data)=paste0("PC",1:ncol(data))
+data$sample=auto.pooldata@poolnames
+data$group=paste0("G",pch.col)
+data$group[pch.col==3]="Wild" ; data$group[pch.col==4]="Col" ; data$group[pch.col==5]="Iso"
+# Plot using ggplot and ggrepel to avoid overlapping labels
+tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(auto.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC2 (",round(auto.pca$perc.var[2],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,5,3)) 
+
+tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(auto.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC3 (",round(auto.pca$perc.var[3],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,5,3)) 
+
+tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(auto.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC4 (",round(auto.pca$perc.var[4],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,5,3)) 
+
+grid.arrange(tmp1, tmp2, tmp3, tmp4, ncol = 2)
+
+rm(data)
+```
+
+## Wolbachia
+
+
+Variant calling was performed as above on *wRI* Wolbachia sequence using the Haplotype Caller implemented in *FreeBayes* [v1.3.6; @Garrison2012], which does not require realignment around indels and base recalibration, jointly considering all the 27 alignment files from the samples described in Table @tbl-detsample. The following options *-K -C 1 -F 0.01 -G 5 --limit-coverage 500 -n 4 -m 30 -q 20* and the ploidy of the Ind-Seq sample or Pool-Seq samples associated with Iso-female lines or colonies was set to 1.  
+
+Here is a summary of the raw characteristics of the discovered variants (i.e., before filtration):
+
+```{r sum_wRI_bef_filt}
+#| echo: true
+tmp=fread(paste0(wd,"/wRI.summary.gz"),h=T,data.table=F)
+sort(table(tmp$TYPE),decreasing=T)
+#Number of samples with data
+summary(tmp$NS)
+quantile(tmp$NS,probs=c(0.01,0.05,0.1,0.25,0.75,0.9,0.95,0.99))
+#Total read depth at the locus
+quantile(tmp$DP[tmp$QUAL>20],probs=c(1e-3,1e-2,1-1e-2,1-1e-3))
+#standard filters on
+  #QUAL="Quality"
+  #SAF="Number of alternate observations on the forward strand"
+  #SAR="Number of alternate observations on the reverse strand"
+  #RPR="Reads Placed Right: number of reads supporting the alternate balanced to the right (3') of the alternate allele"
+  #RPL="Reads Placed Left: number of reads supporting the alternate balanced to the left (5') of the alternate allele"
+sum(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1)
+sum(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1 & tmp$DP>100)
+rm(tmp)
+```
+
+Based on these results, the *vcf* was further filtered using a custom *awk* script to keep only bi-allelic variants (including the reference allele) with *QUAL>20, NS>21, DP>100, SAF>0, SAR>0, RPR>1, RPL>1, EPP>0, SRP>0* and a global MAF computed from the overall read counts >0.01:
+
+```{bash}
+#| eval: false
+gunzip -c wRI.vcf.gz | gawk -f filtersnp.awk -v minns=21 -v maxdp=1e8 |gzip -c > wRI.filtered.vcf.gz 
+```
+
+The resulting filtered *vcf* was analyzed with *poolfstat* utilities.
+
+```{r wRIpooldata}
+all.sample.info=hap.size[read.table(paste0(wd,"/res_vcf/all.sample.ord"))[,1],]
+wRI.pooldata=vcf2pooldata(vcf.file=paste0(wd,"/wRI.filtered.vcf.gz"),poolsizes = all.sample.info[,1],poolnames = rownames(all.sample.info))
+```
+
+As expected from the presence of a single Wolbachia genotype, the MAF boxplot on the called SNPs shows a reduced genetic diversity in Individual, Iso-female and Colony sample (Figure @fig-wRImaf). Still, some polymorphism is found at some SNPs (this may also be related to coverage heterogeneity)? 
+
+```{r wRImafdistrib}
+#| echo: false
+#| fig-height: 8
+#| fig-width: 8 
+#| fig-cap: "Distribution of the MAF of called wRI sites on all the samples ."
+#| fig-cap-location: bottom
+#| label: fig-wRImaf
+wRI.maf=0.5-abs(0.5-wRI.pooldata@refallele.readcount/wRI.pooldata@readcoverage)
+colnames(wRI.maf)=wRI.pooldata@poolnames
+boxplot(wRI.maf,horizontal=T,las=1,xlab="MAF")
+```
+
+The random allele PCA (i.e., ignoring called genotype for presumably haploid Wolbachia sample) shows a clear separation of *D. subpulchrella* Wolbachia on the first PC (Figure @fig-wRIpca). *D. simulans* individual are not spearated from other *D. suzukii* in the first four PCs. Is it biological or resulting from bias due to the mapping on *wRI* sequence? 
+
+```{r wRIpca}
+#| echo: false
+#| fig-height: 16 
+#| fig-width: 24 
+#| fig-cap: "Random allele PCA of Wolbachia SNPs on all the 27 samples."
+#| fig-cap-location: bottom
+#| label: fig-wRIpca
+#boxplot(auto.pooldata@readcoverage)
+wRI.pca=randomallele.pca(wRI.pooldata,plot.pcs = NULL)
+pch.type =rep(16,wRI.pooldata@npools) ; pch.type[wRI.pooldata@poolsizes==2]=17
+pch.col  = rep(3,wRI.pooldata@npools)
+pch.col[which(grepl("Col-",wRI.pooldata@poolnames))]=5
+pch.col[which(grepl("Om300",wRI.pooldata@poolnames) | grepl("Iso-",wRI.pooldata@poolnames))]=4
+pch.col[which(grepl("sub",wRI.pooldata@poolnames) | grepl("CN-Kun",wRI.pooldata@poolnames))]=8
+pch.col[which(grepl("sim",wRI.pooldata@poolnames))]=7
+
+#plot(auto.pca$pop.loadings[,1:2],xlab=paste0("PC1 (",round(auto.pca$perc.var[1],2),"%)"),
+#     ylab=paste0("PC2 (",round(auto.pca$perc.var[2],2),"%)"),
+#     pch=pch.type,col=pch.col)
+#text(auto.pca$pop.loadings[,1:2],auto.pooldata@poolnames,cex=0.5,pos=c(1,3)[order(auto.pca$pop.loadings[,1])%%2+1])
+
+scree_data <- data.frame(PC = factor(paste0("PC", 1:length(wRI.pca$perc.var)),levels = paste0("PC", 1:length(wRI.pca$perc.var))),Variance = wRI.pca$perc.var)
+# Plot the scree plot
+tmp1<-ggplot(scree_data, aes(x = PC, y = Variance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
+  geom_point(size = 2) +  # Add points to show individual PC values
+  geom_line(group = 1, color = "black") +  # Line connecting the points
+  theme_minimal() +
+  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
+  ylim(0, max(wRI.pca$perc.var))
+
+data=as.data.frame(wRI.pca$pop.loadings)
+colnames(data)=paste0("PC",1:ncol(data))
+data$sample=wRI.pooldata@poolnames
+data$group=paste0("G",pch.col)
+data$group[pch.col==3]="Wild" ; data$group[pch.col==4]="Col" ; data$group[pch.col==5]="Iso"
+data$group[pch.col==7]="Dsim" ; data$group[pch.col==8]="Dsuz" 
+# Plot using ggplot and ggrepel to avoid overlapping labels
+tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wRI.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC2 (",round(wRI.pca$perc.var[2],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wRI.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC3 (",round(wRI.pca$perc.var[3],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wRI.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC4 (",round(wRI.pca$perc.var[4],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+grid.arrange(tmp1, tmp2, tmp3, tmp4, ncol = 2)
+
+rm(data)
+```
+
+## Mitochondria
+
+Variant calling was performed as above on *wRI* Wolbachia sequence using the Haplotype Caller implemented in *FreeBayes* [v1.3.6; @Garrison2012], which does not require realignment around indels and base recalibration, jointly considering all the 27 alignment files from the samples described in Table @tbl-detsample. The following options *-K -C 1 -F 0.01 -G 5 --limit-coverage 500 -n 4 -m 30 -q 20*.  
+
+Here is a summary of the raw characteristics of the discovered variants (i.e., before filtration):
+
+```{r sum_Mito_bef_filt}
+#| echo: true
+tmp=fread(paste0(wd,"/Mito.summary.gz"),h=T,data.table=F)
+sort(table(tmp$TYPE),decreasing=T)
+#Number of samples with data
+summary(tmp$NS)
+quantile(tmp$NS,probs=c(0.01,0.05,0.1,0.25,0.75,0.9,0.95,0.99))
+#Total read depth at the locus
+quantile(tmp$DP[tmp$QUAL>20],probs=c(1e-3,1e-2,1-1e-2,1-1e-3))
+#standard filters on
+  #QUAL="Quality"
+  #SAF="Number of alternate observations on the forward strand"
+  #SAR="Number of alternate observations on the reverse strand"
+  #RPR="Reads Placed Right: number of reads supporting the alternate balanced to the right (3') of the alternate allele"
+  #RPL="Reads Placed Left: number of reads supporting the alternate balanced to the left (5') of the alternate allele"
+sum(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1)
+sum(tmp$QUAL>20 & tmp$SAF > 0 & tmp$SAR > 0 & tmp$RPR > 1 & tmp$RPL > 1 & tmp$DP>100)
+rm(tmp)
+```
+
+Based on these results, the *vcf* was further filtered using a custom *awk* script to keep only bi-allelic variants (including the reference allele) with *QUAL>20, NS>21, DP>100, SAF>0, SAR>0, RPR>1, RPL>1, EPP>0, SRP>0* and a global MAF computed from the overall read counts >0.01:
+
+```{bash}
+#| eval: false
+gunzip -c Mito.vcf.gz | gawk -f filtersnp.awk -v minns=21 -v maxdp=1e8 |gzip -c > Mito.filtered.vcf.gz 
+```
+
+The resulting filtered *vcf* was analyzed with *poolfstat* utilities.
+
+```{r Mitopooldata}
+Mito.pooldata=vcf2pooldata(vcf.file=paste0(wd,"/Mito.filtered.vcf.gz"),poolsizes = all.sample.info[,1],poolnames = rownames(all.sample.info))
+```
+
+```{r Mitomafdistrib}
+#| echo: false
+#| fig-height: 8
+#| fig-width: 8 
+#| fig-cap: "Distribution of the MAF of called Mitochondria sites on all the samples ."
+#| fig-cap-location: bottom
+#| label: fig-Mitomaf
+Mito.maf=0.5-abs(0.5-Mito.pooldata@refallele.readcount/Mito.pooldata@readcoverage)
+colnames(Mito.maf)=Mito.pooldata@poolnames
+boxplot(Mito.maf,horizontal=T,las=1,xlab="MAF")
+```
+
+```{r Mitopca}
+#| echo: false
+#| fig-height: 16 
+#| fig-width: 24 
+#| fig-cap: "Random allele PCA of Wolbachia SNPs on all the 27 samples."
+#| fig-cap-location: bottom
+#| label: fig-Mitopca
+#boxplot(auto.pooldata@readcoverage)
+Mito.pca=randomallele.pca(Mito.pooldata,plot.pcs = NULL)
+pch.type =rep(16,Mito.pooldata@npools) ; pch.type[Mito.pooldata@poolsizes==2]=17
+pch.col  = rep(3,Mito.pooldata@npools)
+pch.col[which(grepl("Col-",Mito.pooldata@poolnames))]=5
+pch.col[which(grepl("Om300",Mito.pooldata@poolnames) | grepl("Iso-",Mito.pooldata@poolnames))]=4
+pch.col[which(grepl("sub",Mito.pooldata@poolnames) | grepl("CN-Kun",Mito.pooldata@poolnames))]=8
+pch.col[which(grepl("sim",Mito.pooldata@poolnames))]=7
+
+scree_data <- data.frame(PC = factor(paste0("PC", 1:length(Mito.pca$perc.var)),levels = paste0("PC", 1:length(Mito.pca$perc.var))),Variance = Mito.pca$perc.var)
+# Plot the scree plot
+tmp1<-ggplot(scree_data, aes(x = PC, y = Variance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
+  geom_point(size = 2) +  # Add points to show individual PC values
+  geom_line(group = 1, color = "black") +  # Line connecting the points
+  theme_minimal() +
+  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
+  ylim(0, max(Mito.pca$perc.var))
+
+data=as.data.frame(Mito.pca$pop.loadings)
+colnames(data)=paste0("PC",1:ncol(data))
+data$sample=wRI.pooldata@poolnames
+data$group=paste0("G",pch.col)
+data$group[pch.col==3]="Wild" ; data$group[pch.col==4]="Col" ; data$group[pch.col==5]="Iso"
+data$group[pch.col==7]="Dsim" ; data$group[pch.col==8]="Dsuz" 
+# Plot using ggplot and ggrepel to avoid overlapping labels
+tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(Mito.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC2 (",round(Mito.pca$perc.var[2],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(Mito.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC3 (",round(Mito.pca$perc.var[3],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=group)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(Mito.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC4 (",round(Mito.pca$perc.var[4],2),"%)"), title = "") +
+  scale_color_manual(values = c(4,7,8,5,3)) 
+
+grid.arrange(tmp1, tmp2, tmp3, tmp4, ncol = 2)
+
+rm(data)
+```
+
+
+# References
+
+::: {#refs}
+:::

@@ -1,0 +1,30 @@
+---
+title: "XX_Analyze genomic data"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+library(poolfstat)
+```
+
+# Load data
+```{r, eval=TRUE}
+
+all.sample.info <- read.table(file = file.path(here::here(), "data", "vcf_data", "all.sample.info.csv"), sep=";", header=FALSE)
+
+rownames(all.sample.info) <- all.sample.info[,1]
+
+## Read data
+wRI.pooldata=vcf2pooldata(vcf.file=file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz"), poolsizes = all.sample.info[,2],poolnames = all.sample.info[,1])
+dim(all.sample.info)
+
+```
