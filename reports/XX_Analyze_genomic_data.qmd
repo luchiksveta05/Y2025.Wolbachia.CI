@@ -19,12 +19,12 @@ library(poolfstat)
 # Load data
 ```{r, eval=TRUE}
 
-all.sample.info <- read.table(file = file.path(here::here(), "data", "vcf_data", "all.sample.info.csv"), sep=";", header=FALSE)
-
-rownames(all.sample.info) <- all.sample.info[,1]
+all.sample.info <- read.csv(file = file.path(here::here(), "data", "vcf_data", "all.sample.info.csv"), sep=";", header=FALSE)
+dim(all.sample.info)
+rownames(all.sample.info) <-  rownames(all.sample.info)
 
 ## Read data
-wRI.pooldata=vcf2pooldata(vcf.file=file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz"), poolsizes = all.sample.info[,2],poolnames = all.sample.info[,1])
-dim(all.sample.info)
+wRI.pooldata=vcf2pooldata(vcf.file=file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz"), poolsizes = all.sample.info[,2],poolnames = rownames(all.sample.info))
+
 
 ```
