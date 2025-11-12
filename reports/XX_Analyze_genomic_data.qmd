@@ -24,7 +24,40 @@ dim(all.sample.info)
 rownames(all.sample.info) <-  rownames(all.sample.info)
 
 ## Read data
-wRI.pooldata=vcf2pooldata(vcf.file=file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz"), poolsizes = all.sample.info[,2],poolnames = rownames(all.sample.info))
+wRI.pooldata=vcf2pooldata(vcf.file=file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz"), poolsizes = all.sample.info[,2],poolnames = rownames(all.sample.info), min.maf=0.01, min.cov.per.pool=-1)
+
+## SNP infos
+head(wRI.pooldata@snp.info)
+
+## 98 SNPs
+wRI.pooldata@nsnp
+
+## 27 samples
+wRI.pooldata@poolnames
+
+## Matrix for coverage and readcounts with SNPs in rows and samples in columns
+head(wRI.pooldata@readcoverage[, 1:20])
+
+head(wRI.pooldata@refallele.readcount[, 1:20])
 
 
+wRI.maf=0.5-abs(0.5-wRI.pooldata@refallele.readcount/wRI.pooldata@readcoverage)
 ```
+
+# Check coverage
+```{r, eval=TRUE}
+
+## 9 individual samples with fewer than 85% of the SNPs covered
+ind.callrate <- apply(wRI.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wRI.pooldata@readcoverage))
+sum(ind.callrate<=0.85)
+wRI.pooldata@poolnames[ind.callrate<=0.85]
+
+## Filter 9 individual samples with fewer than 85% of the SNPs covered
+wRI.pooldata <- poolfstat::pooldata.subset(pooldata=wRI.pooldata,  pool.index = which(ind.callrate>0.85))
+
+## 110 SNPs with fewer than 90% of individual samples covered
+snp.callrate <- apply(wRI.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wRI.pooldata@readcoverage))
+sum(snp.callrate<=0.9)
+
+## Filter 110 SNPs with fewer than 90% of individual samples covered
+wRI.pooldata <- poolfstat::pooldata.subset(pooldata=wRI.pooldata,  snp.index = which(snp.callrate>0.9))

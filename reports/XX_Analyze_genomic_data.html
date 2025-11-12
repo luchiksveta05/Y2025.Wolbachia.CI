@@ -3026,6 +3026,13 @@ vertical-align: -.125em;
    
   <ul>
   <li><a href="#load-data" id="toc-load-data" class="nav-link active" data-scroll-target="#load-data"><span class="header-section-number">1</span> Load data</a></li>
+  <li><a href="#check-coverage" id="toc-check-coverage" class="nav-link" data-scroll-target="#check-coverage"><span class="header-section-number">2</span> Check coverage</a>
+  <ul class="collapse">
+  <li><a href="#individual-samples-with-fewer-than-85-of-the-snps-covered" id="toc-individual-samples-with-fewer-than-85-of-the-snps-covered" class="nav-link" data-scroll-target="#individual-samples-with-fewer-than-85-of-the-snps-covered"><span class="header-section-number">2.1</span> 9 individual samples with fewer than 85% of the SNPs covered</a></li>
+  <li><a href="#filter-9-individual-samples-with-fewer-than-85-of-the-snps-covered" id="toc-filter-9-individual-samples-with-fewer-than-85-of-the-snps-covered" class="nav-link" data-scroll-target="#filter-9-individual-samples-with-fewer-than-85-of-the-snps-covered"><span class="header-section-number">2.2</span> Filter 9 individual samples with fewer than 85% of the SNPs covered</a></li>
+  <li><a href="#snps-with-fewer-than-90-of-individual-samples-covered" id="toc-snps-with-fewer-than-90-of-individual-samples-covered" class="nav-link" data-scroll-target="#snps-with-fewer-than-90-of-individual-samples-covered"><span class="header-section-number">2.3</span> 110 SNPs with fewer than 90% of individual samples covered</a></li>
+  <li><a href="#filter-110-snps-with-fewer-than-90-of-individual-samples-covered" id="toc-filter-110-snps-with-fewer-than-90-of-individual-samples-covered" class="nav-link" data-scroll-target="#filter-110-snps-with-fewer-than-90-of-individual-samples-covered"><span class="header-section-number">2.4</span> Filter 110 SNPs with fewer than 90% of individual samples covered</a></li>
+  </ul></li>
   </ul>
 </nav>
 </div>
@@ -3073,7 +3080,7 @@ vertical-align: -.125em;
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(all.sample.info) <span class="ot">&lt;-</span>  <span class="fu">rownames</span>(all.sample.info)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="do">## Read data</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>wRI.pooldata<span class="ot">=</span><span class="fu">vcf2pooldata</span>(<span class="at">vcf.file=</span><span class="fu">file.path</span>(here<span class="sc">::</span><span class="fu">here</span>(), <span class="st">&quot;data&quot;</span>, <span class="st">&quot;vcf_data&quot;</span>, <span class="st">&quot;wRI.filtered.vcf.gz&quot;</span>), <span class="at">poolsizes =</span> all.sample.info[,<span class="dv">2</span>],<span class="at">poolnames =</span> <span class="fu">rownames</span>(all.sample.info))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>wRI.pooldata<span class="ot">=</span><span class="fu">vcf2pooldata</span>(<span class="at">vcf.file=</span><span class="fu">file.path</span>(here<span class="sc">::</span><span class="fu">here</span>(), <span class="st">&quot;data&quot;</span>, <span class="st">&quot;vcf_data&quot;</span>, <span class="st">&quot;wRI.filtered.vcf.gz&quot;</span>), <span class="at">poolsizes =</span> all.sample.info[,<span class="dv">2</span>],<span class="at">poolnames =</span> <span class="fu">rownames</span>(all.sample.info), <span class="at">min.maf=</span><span class="fl">0.01</span>, <span class="at">min.cov.per.pool=</span><span class="sc">-</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Reading Header lines
 Standard format (i.e., as in Bcftools, GATK, etc.) detected for the AD field:
@@ -3082,7 +3089,84 @@ Parsing allele counts
 98  lines processed in 0 h  0 m  0 s : 98 SNPs found
 Data consists of 98 SNPs for 27 Pools</code></pre>
 </div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="do">## SNP infos</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(wRI.pooldata<span class="sc">@</span>snp.info)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  Chromosome Position RefAllele AltAllele
+1        wRI    10831         C         A
+2        wRI    23619         C         A
+3        wRI    45183         G         A
+4        wRI    72490         C         G
+5        wRI    75901       TTG       TTT
+6        wRI   112177   CAAAGGT    CAAGGT</code></pre>
 </div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="do">## 98 SNPs</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>wRI.pooldata<span class="sc">@</span>nsnp</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 98</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="do">## 27 samples</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>wRI.pooldata<span class="sc">@</span>poolnames</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] &quot;1&quot;  &quot;2&quot;  &quot;3&quot;  &quot;4&quot;  &quot;5&quot;  &quot;6&quot;  &quot;7&quot;  &quot;8&quot;  &quot;9&quot;  &quot;10&quot; &quot;11&quot; &quot;12&quot; &quot;13&quot; &quot;14&quot; &quot;15&quot;
+[16] &quot;16&quot; &quot;17&quot; &quot;18&quot; &quot;19&quot; &quot;20&quot; &quot;21&quot; &quot;22&quot; &quot;23&quot; &quot;24&quot; &quot;25&quot; &quot;26&quot; &quot;27&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Matrix for coverage and readcounts with SNPs in rows and samples in columns</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(wRI.pooldata<span class="sc">@</span>readcoverage[, <span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13] [,14]
+[1,]   12    8   87    3   10   33  511  557  107     0   123     0   192   327
+[2,]   12    8   63    3   14   26  467  574   90     0   150     2   242   352
+[3,]   10   12   73    5   14   35  515  534   97     0   118     1   224   370
+[4,]    8    6   85    7   16   30  535  554  112     0   133     2   229   299
+[5,]    9    6   75    8   15   46  443  581  115     0   121     2   228   314
+[6,]    7    9   64    7   11   38  439  516  100     0   113     3   183   288
+     [,15] [,16] [,17] [,18] [,19] [,20]
+[1,]   320   853   110   928   621    10
+[2,]   283   835   106   846   583    10
+[3,]   324   816   123   780   588    14
+[4,]   314   826   160   818   624    14
+[5,]    63   823   148   749   560    17
+[6,]   283   710   101   720   516    11</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(wRI.pooldata<span class="sc">@</span>refallele.readcount[, <span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13] [,14]
+[1,]   12    8   87    3   10   33  508  557  107     0     0     0   192   327
+[2,]   12    8   63    3   14   26  467  573   90     0   150     2   241   351
+[3,]   10   12   73    5    2   35  515  534   97     0     0     1   224   370
+[4,]    8    6   77    7   16   30    0  554    0     0   133     1     0   299
+[5,]    9    6   75    8   15   46  441  578  114     0   121     2   227   314
+[6,]    6    0   64    7    0   38  439  516  100     0     0     3   183   288
+     [,15] [,16] [,17] [,18] [,19] [,20]
+[1,]   320   852   110   928   620    10
+[2,]     6   825   105   845   581    10
+[3,]   324   816   123   780   588    14
+[4,]   303   826   160   818   624     4
+[5,]     8   819   148   747   557    17
+[6,]   283   710   101   720   516    11</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>wRI.maf<span class="ot">=</span><span class="fl">0.5</span><span class="sc">-</span><span class="fu">abs</span>(<span class="fl">0.5</span><span class="sc">-</span>wRI.pooldata<span class="sc">@</span>refallele.readcount<span class="sc">/</span>wRI.pooldata<span class="sc">@</span>readcoverage)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="check-coverage" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Check coverage</h1>
+<section id="individual-samples-with-fewer-than-85-of-the-snps-covered" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="individual-samples-with-fewer-than-85-of-the-snps-covered"><span class="header-section-number">2.1</span> 9 individual samples with fewer than 85% of the SNPs covered</h2>
+<p>ind.callrate &lt;- apply(wRI.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wRI.pooldata@readcoverage)) sum(ind.callrate&lt;=0.85) wRI.pooldata@poolnames[ind.callrate&lt;=0.85]</p>
+</section>
+<section id="filter-9-individual-samples-with-fewer-than-85-of-the-snps-covered" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="filter-9-individual-samples-with-fewer-than-85-of-the-snps-covered"><span class="header-section-number">2.2</span> Filter 9 individual samples with fewer than 85% of the SNPs covered</h2>
+<p>wRI.pooldata &lt;- poolfstat::pooldata.subset(pooldata=wRI.pooldata, pool.index = which(ind.callrate&gt;0.85))</p>
+</section>
+<section id="snps-with-fewer-than-90-of-individual-samples-covered" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="snps-with-fewer-than-90-of-individual-samples-covered"><span class="header-section-number">2.3</span> 110 SNPs with fewer than 90% of individual samples covered</h2>
+<p>snp.callrate &lt;- apply(wRI.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wRI.pooldata@readcoverage)) sum(snp.callrate&lt;=0.9)</p>
+</section>
+<section id="filter-110-snps-with-fewer-than-90-of-individual-samples-covered" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="filter-110-snps-with-fewer-than-90-of-individual-samples-covered"><span class="header-section-number">2.4</span> Filter 110 SNPs with fewer than 90% of individual samples covered</h2>
+<p>wRI.pooldata &lt;- poolfstat::pooldata.subset(pooldata=wRI.pooldata, snp.index = which(snp.callrate&gt;0.9))</p>
+</section>
 </section>
 
 </main>
