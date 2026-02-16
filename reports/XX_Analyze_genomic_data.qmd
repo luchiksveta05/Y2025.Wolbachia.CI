@@ -1,0 +1,177 @@
+---
+title: "XX_Analyze genomic data"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#devtools::load_all()
+library(poolfstat)
+library(ComplexHeatmap)
+```
+
+# Load data
+```{r, eval=TRUE}
+
+all.sample.info <- read.csv(file = file.path(here::here(), "data", "vcf_data", "all.sample.info.csv"), sep=";", header=FALSE)
+
+dim(all.sample.info)
+rownames(all.sample.info) <-  all.sample.info[, 1]
+
+## Load sample names with no filter on q20
+vcf_path <- file.path(here::here(), "data", "vcf_data", "wRI.vcf.gz")
+#vcf_path <- file.path(here::here(), "data", "vcf_data", "wRI.filtered.vcf.gz")
+## Name of samples
+seq.names <- unlist(strsplit(grep("^#CHROM", readLines(vcf_path), value = TRUE), "\t"))
+seq.names <- seq.names[-(1:9)]
+
+data.frame(seq.names, rownames(all.sample.info))
+
+## Read data
+wSuz.pooldata=vcf2pooldata(vcf.file=vcf_path, poolsizes = all.sample.info[,2],poolnames = rownames(all.sample.info), min.maf=0.01, min.cov.per.pool=-1)
+
+
+
+## SNP infos
+head(wSuz.pooldata@snp.info)
+
+## 98 SNPs
+wSuz.pooldata@nsnp
+
+## 27 samples
+wSuz.pooldata@poolnames
+
+## Matrix for coverage and readcounts with SNPs in rows and samples in columns
+head(wSuz.pooldata@readcoverage[, 1:20])
+
+head(wSuz.pooldata@refallele.readcount[, 1:20])
+
+
+```
+
+# Select samples
+```{r, eval=TRUE}
+samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "D-sub", "CN-Kun_KM5" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1" )
+
+## Filter CI individuals
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(rownames(all.sample.info)%in% samples))
+
+## Export genotypes
+geno_data <- round(wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage, 2)
+
+## Add positions
+geno_data <- data.frame(wSuz.pooldata@snp.info, geno_data)
+colnames(geno_data) <- wSuz.pooldata@poolnames
+
+head(geno_data, n=50)
+write.table(x=geno_data, file=here::here("data/derived_data/wol_genotypes.csv"), sep=";", row.names=FALSE, quote = FALSE, col.names = TRUE)
+```
+
+# Check MAF across samples
+As expected from the presence of a single Wolbachia genotype, the MAF boxplot on the called SNPs shows a reduced genetic diversity in Individual, Iso-female and Colony sample (@fig-wSuzmaf). Still, some polymorphism is found at some SNPs (this may also be related to coverage heterogeneity)?
+```{r, eval=TRUE}
+#| echo: false
+#| fig-height: 8
+#| fig-width: 8 
+#| fig-cap: "Distribution of the MAF of called wRI sites on all the samples ."
+#| fig-cap-location: bottom
+#| label: fig-wSuzmaf
+
+wSuz.maf <- 0.5-abs(0.5-wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage)
+
+colnames(wSuz.maf) <- wSuz.pooldata@poolnames
+boxplot(wSuz.maf,horizontal=T,las=1,xlab="MAF")
+
+```
+
+# Check call rate
+```{r, eval=TRUE}
+
+## The 98 SNPs of the 7 samples are well covered
+ind.callrate <- apply(wSuz.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wSuz.pooldata@readcoverage))
+
+ind.callrate
+data.frame(wSuz.pooldata@poolnames, ind.callrate)
+hist(ind.callrate)
+
+## Filter 0 individual samples with fewer than 80% of the SNPs covered
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(ind.callrate>0.8))
+
+
+## 110 SNPs with fewer than 90% of individual samples covered
+snp.callrate <- apply(wSuz.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wSuz.pooldata@readcoverage))
+hist(snp.callrate)
+
+## Filter XX SNPs with fewer than 90% of individual samples covered
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
+```
+
+# PCA and clustering
+## PCA
+```{r, eval=TRUE}
+set.seed(1234)
+par(xpd=TRUE)
+res.pca <- poolfstat::randomallele.pca(x = wSuz.pooldata, plot.pcs = c(1, 2), return.snploadings = TRUE)
+
+```
+
+## Clustering of variants
+```{r, eval=TRUE}
+fstats <- poolfstat::compute.fstats(x=wSuz.pooldata, output.pairwise.div = TRUE, verbose = TRUE, computeF3 = FALSE, computeF4 = FALSE)
+
+## Export divergence
+fstats@pairwise.div
+
+## Hirarchical clustering equivalent to UPGMA
+tt <- hclust(as.dist(fstats@pairwise.div), method= "average")
+plot(tt)
+
+## Neighbor joining distance
+tt <- ape::nj(as.dist(fstats@pairwise.div))
+plot(tt)
+
+#quartz()
+## Heatmap
+heatmap(fstats@pairwise.div, distfun = as.dist)
+
+## With ComplexHeatmap
+div.hm <- ComplexHeatmap::Heatmap(fstats@pairwise.div,
+cluster_rows =TRUE,cluster_columns=TRUE,name="Divergence",
+show_heatmap_legend=FALSE,column_title = "Divergence (1-Q2)")
+
+div.hm
+
+```
+
+# Cif genes TODO Sveta (please check that there is no coverage information in the second copy of WO-B at position 1,071,000 to 1,142,000)
+Conner et al 2017
+wRi, there are two nearly identical copies (99.4%) of WO-B, from about 565,000 : 636,000 and from about 1,071,000 to 1,142,000
+https://www.genome.jp/dbget-bin/www_bget?refseq+NC_012416
+
+
+Type I
+cifA WRI_RS02675 WRi_005370 in wRI 571723:573147
+cifB WRI_RS07690 WRi_p05380 in WRI: 573223:576723 (stop codon in wRI)
+
+Type I
+cifA WRI_RS05040 WRi_010030 in wRI 1078182:1079606
+cifB WRI_RS07735 WRi_p10040 in WRI: 1079682:1083182 (stop codon in wRI)
+
+Type II
+cifA WRI_RS03370 WRi_006720 in wRI 728237:729607 (partial with insertion at 729284 in wSuz)
+cifB WRI_RS03365 WRi_006710 in WRI: 725963:728227
+```{r, eval=TRUE}
+## Thoughts on the lack of CI:
+## 5 mutations in Type I cifB between wSuz and wMel (some of them shared with wSuz)
+## inactivation of Type II cifA by a transposase in wSuz and wSpc but not in wRI (Conner et al 2017)
+
+data <- read.table(file=here::here("data/derived_data/wol_genotypes.csv"), sep=";", header = TRUE)
+
+```

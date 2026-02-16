@@ -17,7 +17,7 @@ dir.create("data/raw_data")
 dir.create("data/derived_data")
 dir.create("reports")
 dir.create("plots")
-dir.create("tutorials")
+
 
 ## Create a R directory and a file for functions
 usethis::use_r("utils-pipe")
