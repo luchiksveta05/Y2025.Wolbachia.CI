@@ -1,0 +1,13 @@
+"continent";"uninfstrain";"infstrain";"type";"Estimate";"2.5%";"97.5%"
+"europe";"Am";"Trento";"TestCrossvs.CtrlCross1";0.501783179415076;0.415649063593807;0.59062969403349
+"europe";"Am";"Trento";"TestCrossvs.CtrlCross2";0.46693429431534;0.3524256662338;0.569220806119462
+"europe";"Am";"Trento";"TestCrossvs.CtrlCross3";0.464716631487371;0.350338642543879;0.563868184019226
+"europe";"Am";"Bal";"TestCrossvs.CtrlCross1";0.742514278234585;0.645100929512974;0.819945819059068
+"europe";"Am";"Bal";"TestCrossvs.CtrlCross2";0.772158317859688;0.692013640188193;0.841932813791828
+"europe";"Am";"Bal";"TestCrossvs.CtrlCross3";0.751154393567367;0.647518072098469;0.830498207161011
+"europe";"Am";"Rennes";"TestCrossvs.CtrlCross1";0.134999136595991;0.000501525670923009;0.260184869992113
+"europe";"Am";"Rennes";"TestCrossvs.CtrlCross2";0.188886086224634;0.0742505354590913;0.303539642036665
+"europe";"Am";"Rennes";"TestCrossvs.CtrlCross3";0;0;0.156632786239571
+"europe";"Am";"Par6";"TestCrossvs.CtrlCross1";0.146969518632667;0;0.379595760903672
+"europe";"Am";"Par6";"TestCrossvs.CtrlCross2";0.194245179355494;0;0.403339134712071
+"europe";"Am";"Par6";"TestCrossvs.CtrlCross3";0;0;0.257288416763381

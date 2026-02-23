@@ -1,0 +1,17 @@
+continent,uninfstrain,infstrain,type,Estimate,2.50%,97.50%
+europe,Am,Trento,cond.CrossTypeAmxAm,0.782553851,0.739395077,0.818186109
+europe,Am,Trento,cond.CrossTypeAmxTrento,0.389881492,0.324301128,0.458778707
+europe,Am,Trento,cond.CrossTypeTrentoxAm,0.731394812,0.665934089,0.786426425
+europe,Am,Trento,cond.CrossTypeTrentoxTrento,0.728364666,0.6619691,0.789139015
+europe,Am,Bal,cond.CrossTypeAmxAm,0.785527642,0.726300575,0.835341561
+europe,Am,Bal,cond.CrossTypeAmxBal,0.202262152,0.14059811,0.272908053
+europe,Am,Bal,cond.CrossTypeBalxAm,0.887731121,0.82526396,0.931147549
+europe,Am,Bal,cond.CrossTypeBalxBal,0.81280178,0.724297347,0.872052264
+europe,Am,Rennes,cond.CrossTypeAmxAm,0.80080044,0.736079312,0.854716398
+europe,Am,Rennes,cond.CrossTypeAmxRennes,0.692693072,0.601951272,0.763179234
+europe,Am,Rennes,cond.CrossTypeRennesxAm,0.854002206,0.784766336,0.905538955
+europe,Am,Rennes,cond.CrossTypeRennesxRennes,0.690983313,0.598294272,0.773807486
+europe,Am,Par6,cond.CrossTypeAmxAm,0.817949559,0.703007352,0.910374949
+europe,Am,Par6,cond.CrossTypeAmxPar6,0.697735906,0.521324818,0.841087264
+europe,Am,Par6,cond.CrossTypePar6xAm,0.865940716,0.733667024,0.942366092
+europe,Am,Par6,cond.CrossTypePar6xPar6,0.644493465,0.467094434,0.820295173
