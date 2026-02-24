@@ -142,15 +142,7 @@ extract_model <- function(.){
 
 #' Extract the likelihood from glmmTMB model
 #' @export
-#logLik.glmmTMB <- function(object, ...) {
-#  val <- -object$fit$objective   # convert negLL → LL
-
-#  attr(val, "df")   <- length(object$fit$par)
-#  attr(val, "nobs") <- nobs(object)
-
-#  class(val) <- "logLik"
-#  val
-#}
+#'
 assignInNamespace(
   "logLik.glmmTMB",
   function(object, ...) {

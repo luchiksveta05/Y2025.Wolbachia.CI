@@ -76,7 +76,6 @@ write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data"
 
 ```
 
-# Fit one zero-inflated GLMM with merged_data
 ```{r}
 
 # Subset the data with a single type of cross (with Bal line)
@@ -140,7 +139,7 @@ m2 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~
 
 ## Check the model
 glmmTMB::diagnose(fit=m2)
-logLik(m2)
+summary(m2)
 
 ## Probability of having no mating
 (p1 <- 1/(1+exp(-glmmTMB::fixef(m2)$zi)))
@@ -160,7 +159,7 @@ m3 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount)~ 
 #m3 <- glmmTMB::glmmTMB(prop~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
 
 ## Check the model
-glmmTMB::diagnose(fit=m3)
+#glmmTMB::diagnose(fit=m3)
 summary(m3)
 logLik(m3)
 ## Probability of having no mating
@@ -213,7 +212,7 @@ europe <- europe[c(1, 2, 3, 11)]
 crosses <- data.frame(continent=rep("Europe", 4), uninf_strain="Am" , inf_strain=c("Trento", "Bal", "Rennes", "Par6"))
 
 ## Fit all models on all the crosses function with nbootsim = 500
-results <- apply(crosses, 1, fit_ZIBinomial, nbootsim = 100)
+results <- apply(crosses, 1, fit_ZIBinomial, nbootsim = 500)
 
 ## Extract the results from all models
 crossnum <- 1:nrow(crosses)
