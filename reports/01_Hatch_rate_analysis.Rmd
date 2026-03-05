@@ -954,15 +954,12 @@ hatchrateplot1 <- median_hatch_rate_reduced |>
   ggplot2::geom_point(data = median_hatch_rate, aes(x = CrossTypeLabel, y = hatchrate), position = position_jitter(width = 0.15, height = 0), size =3) + 
   ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.2), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
   scale_fill_manual(values = c("Control cross 1 W- x W-" = "#00bfc4", "Test cross W- x W+" = "#F8766D", "Control cross 2 W+ x W-" = "#7cae00", "Control cross 3 W+ x W+" = "#c77cff")) +
-  #scale_color_manual(values = c ("2023" = "#931F1D", "2024" = "#00008B")) + 
   labs(x = "Cross", y = "Hatch rate", title = "Median hatch rate and individual hatch rates per cross (female strain x male strain)", fill = "Cross type") +
-  #ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
   ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
   #ggplot2::facet_wrap(~ LineType + Pair_Type, ncol = 4, scales = "free_x", strip.position = "top", drop=FALSE, labeller = label_bquote( cols = Pair_Type)) +
   ##ggplot2::facet_grid(Continent~Pair, switch = NULL, scales = "free", space = "fixed") +
   theme_grey(base_size = 30) +
   theme(plot.margin = margin(20, 20, 20, 20, "pt"),
-        #strip.background = element_blank(),  # Removes background from facet labels
         strip.placement = "outside", 
         axis.text.x = element_text(size=30, angle = 45, hjust = 1), #modify the text of the axis x
         axis.text=element_text(size=20),
