@@ -81,30 +81,10 @@ write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data"
 
 ```
 
-# Rename couple ids within each cross type from 1 to n not nessesary?
-
-```{r}
-
-## Vector of coupleids
-vec <- levels(data$CoupleID)
-
-## For each cross type, name coupleID from 1 to n, the number of couples in this crosstype
-for (i in levels(data$CrossType)){
-  couple_ids <- unique(data$CoupleID[data$CrossType==i])
-  vec[levels(data$CoupleID)%in%couple_ids] <- 1:length(couple_ids)
-}
-
-data <- data |>
-  dplyr::mutate(CoupleID_new = CoupleID)
-levels(data$CoupleID_new) <- vec
-
-data <- data |>
-  dplyr::mutate(CoupleID_new2 = as.numeric(CoupleID_new))
-
-```
-
 # Fit one zero-inflated GLMM with merged_data
 ```{r}
+# Read dataset
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Subset the data with a single type of cross (with Bal line)
 dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
@@ -229,7 +209,7 @@ AmPar6 <- fit_ZIBinomial(crosses=c("Europe", "Am", "Par6"), data=merged_data)
 
 ```
 
-# Fit each zero-inflated GLMM with merged data for Bal, Trento, Par6 and Renees lines 
+# Fit each zero-inflated GLMM with merged data for Bal, Trento, Par6 and Renes lines 
 ```{r}
 ## List of lines
 
@@ -266,7 +246,7 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_est
 ```{r}
 
 #Read database
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=",", header = TRUE))
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Filter and keep data only for screen for CI (403 rows)
 data1 <- merged_data |>
