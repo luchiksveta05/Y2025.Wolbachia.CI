@@ -75,8 +75,11 @@ merged_data <- merged_data |>
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", row.names = FALSE)
 
 ```
+# Fit one zero-inflated GLMM with merged_data
 
 ```{r}
+
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Subset the data with a single type of cross (with Bal line)
 dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
@@ -234,11 +237,11 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_est
 
 ```
 
-# Figure 1
+# Figure 3
 ```{r}
 
 #Read database
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=",", header = TRUE))
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Filter and keep data only for screen for CI (403 rows)
 data1 <- merged_data |>
@@ -258,7 +261,7 @@ data1 <- data1 |>
 
 # Plot hatch_rate
 data1 |>
-  dplyr::group_by(CrossType) %>%
+  dplyr::group_by(CrossType) |>
   ggplot(aes(x = CrossTypeLabel, y = hatchrate)) +
   geom_point() +
   ggplot2::facet_grid(.~ Pair, scales = "free", space = "free", switch = "x") +
@@ -270,9 +273,66 @@ data1 |>
 data_hatchrate <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2.csv"), sep=",", header = TRUE))
 
 data_hatchrate <- data_hatchrate |>
-  dplyr::mutate(CrossType = sub(".*CrossType", "", type))
+  dplyr::rename(
+    X2.5.  = `X2.50.`,
+    X97.5. = `X97.50.`)
 
 data_hatchrate <- data_hatchrate |>
+dplyr::distinct(CrossType, .keep_all = TRUE)
+
+#Fit model m1 for Par6 line to estimate hatch rate 
+#Remove rows for Par6
+data_hatchrate <- data_hatchrate |>
+dplyr::filter(!infstrain %in% c("Par6"))
+
+##Subset the data with a single type of cross
+dat <- merged_data[merged_data$Female%in%c("Am", "Par6")&merged_data$Male%in%c("Am", "Par6"), ]
+
+## Fit m1 model to measure hatch rate
+m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
+
+## Check the model
+glmmTMB::diagnose(fit=m1)
+summary(m1)
+
+## Hatch rate
+(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
+
+## Refit model nsim times
+  b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=500, .progress="txt")
+  
+##Confidence intervals estimation
+  confint <- bCI_tab(b=b1)
+  
+  ##Extract data
+  confintp2 <- confint[grepl("cond", rownames(confint)),]
+  
+  confintp2 <- as.data.frame(confintp2) |>
+  tibble::rownames_to_column(var = "type")
+  
+  ##Change format of the data for Par6
+  confintp2Par6 <- confintp2 |>
+  dplyr::mutate(
+    continent   = "europe",
+    uninfstrain = "Am",
+    infstrain   = "Par6",
+  ) |>
+  dplyr::select(
+    continent, uninfstrain, infstrain,
+    type, Estimate, `2.5 %`, `97.5 %`
+  )|>
+  dplyr::rename(
+    X2.5.  = `2.5 %`,
+    X97.5. = `97.5 %`
+  )
+
+  ##Add information about hatch rate in Par6 line to the database
+  data_hatchrate <- dplyr::bind_rows(data_hatchrate, confintp2Par6)
+  
+  data_hatchrate <- data_hatchrate |>
+  dplyr::mutate(CrossType = sub(".*CrossType", "", type)) 
+  
+  data_hatchrate <- data_hatchrate |>
 dplyr::distinct(CrossType, .keep_all = TRUE)
 
 # Add information about hatch rate to the dataset
@@ -304,7 +364,7 @@ median_hatch_rate <-median_hatch_rate |>
 hatchrateplot1 <- median_hatch_rate_reduced |>
   ggplot2::ggplot(aes(x = CrossTypeLabel, y = Estimate, fill = Cross), size=100) +
   ggplot2::geom_bar(stat = "identity") +
-  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.50., ymax = X97.50.), width = 0.4) +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.5., ymax = X97.5.), width = 0.4) +
   ggplot2::geom_point(data = median_hatch_rate, aes(x = CrossTypeLabel, y = hatchrate, color = Year), position = position_jitter(width = 0.15, height = 0), size =3) + 
   ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.2), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
   scale_fill_manual(values = c("Control cross 1 W- x W-" = "#00bfc4", "Test cross W- x W+" = "#F8766D", "Control cross 2 W+ x W-" = "#7cae00", "Control cross 3 W+ x W+" = "#c77cff")) +

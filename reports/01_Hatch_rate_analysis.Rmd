@@ -213,7 +213,7 @@ AmPar6 <- fit_ZIBinomial(crosses=c("Europe", "Am", "Par6"), data=merged_data)
 ```{r}
 ## List of lines
 
-europe <- unique(merged_data_$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
+europe <- unique(merged_data$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
 europe <- europe[c(1, 2, 12, 4)]
 
 ## Dataframe with all the lines
@@ -242,7 +242,7 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_est
 
 ```
 
-# Figure 1
+# Figure 3
 ```{r}
 
 #Read database
