@@ -1,0 +1,7 @@
+"continent";"uninfstrain";"infstrain";"type";"Estimate";"2.5%";"97.5%"
+"Europe";"Am";"Bal";"zi.(Intercept)";0.0445031347847047;3.81063402138532e-10;0.102065061132281
+"Europe";"Am";"Par6";"zi.(Intercept)";0.0311175062832245;3.07874176235341e-10;0.0882354540440271
+"Europe";"Am";"F1 BalxPar6";"zi.(Intercept)";0.0619149869072576;4.10467321834854e-10;0.134614821085394
+"Europe";"Am";"F1 Par6xBal";"zi.(Intercept)";3.39470865118315e-10;2.62963559704393e-10;5.19894380232561e-10
+"Europe";"Am";"F2 BalxPar6xBalxPar6";"zi.(Intercept)";0.0195033999673072;2.79932262790284e-10;0.0701756720283564
+"Europe";"Am";"F2 Par6xBalxPar6xBal";"zi.(Intercept)";0.0539849959962822;3.56221504250975e-10;0.124201400361306

@@ -1,0 +1,19 @@
+"continent";"uninfstrain";"infstrain";"type";"Estimate";"2.5%";"97.5%"
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross1";0.667538325753644;0.487425379866741;0.781638125094849
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross2";0.714365808728955;0.578037069023898;0.812933694570916
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross3";0.705087087663179;0.566501749996343;0.812487442268244
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross1";0;0;0.176002209166977
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross2";0.110483431280425;0;0.292897935144817
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross3";0;0;0
+"Europe";"Am";"F1 BalxPar6";"TestCrossvs.CtrlCross1";0.139658770347861;0;0.404144221865769
+"Europe";"Am";"F1 BalxPar6";"TestCrossvs.CtrlCross2";0.268727169589401;0.0707982776069991;0.469997828817117
+"Europe";"Am";"F1 BalxPar6";"TestCrossvs.CtrlCross3";0.245750550708737;0.00662999835272438;0.459225356056774
+"Europe";"Am";"F1 Par6xBal";"TestCrossvs.CtrlCross1";0;0;0
+"Europe";"Am";"F1 Par6xBal";"TestCrossvs.CtrlCross2";0;0;0
+"Europe";"Am";"F1 Par6xBal";"TestCrossvs.CtrlCross3";0;0;0
+"Europe";"Am";"F2 BalxPar6xBalxPar6";"TestCrossvs.CtrlCross1";0.323851948079385;0.0354112318551393;0.526350761858493
+"Europe";"Am";"F2 BalxPar6xBalxPar6";"TestCrossvs.CtrlCross2";0.484642109394093;0.315483121634936;0.630680583885815
+"Europe";"Am";"F2 BalxPar6xBalxPar6";"TestCrossvs.CtrlCross3";0.402252016913576;0.16314084496076;0.580075483332082
+"Europe";"Am";"F2 Par6xBalxPar6xBal";"TestCrossvs.CtrlCross1";0.167041442892908;0;0.415938866445844
+"Europe";"Am";"F2 Par6xBalxPar6xBal";"TestCrossvs.CtrlCross2";0.263403800400096;0.0278095369544631;0.476979928635689
+"Europe";"Am";"F2 Par6xBalxPar6xBal";"TestCrossvs.CtrlCross3";0.287015298525334;0.0195538844263239;0.474086982853647
