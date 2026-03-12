@@ -197,10 +197,6 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_est
 # Fit models to test genetic effects
 ```{r, eval=TRUE}
 
-#merged_data2 <- merged_data |>
-  dplyr::group_by(CrossType, Female, Male, Batch, Year) |>
-  dplyr::summarise(hatch_rate=sum_larvacount/sum_eggcount_corr )
-
 ## Compute proportion of eggs that hatch into larvae
 merged_data$prop <- merged_data$sum_larvacount / merged_data$sum_eggcount_corr
   
@@ -208,7 +204,6 @@ merged_data$prop <- merged_data$sum_larvacount / merged_data$sum_eggcount_corr
 strains <- c("Par6", "Bal", "F1 Par6xBal", "F1 BalxPar6", "F2 Par6xBalxPar6xBal", "F2 BalxPar6xBalxPar6")
 crosstype <- paste0("Amx", strains)
 dat <- merged_data[merged_data$CrossType%in%crosstype, ]
-#dat <- merged_data[merged_data$CrossType%in%crosstype&merged_data$Batch%in%c(8, 9), ]
   
 ## Variable to fit different variances for F2 vs. the other crosstypes
 dat$vargroup <- as.factor(grepl("F2", dat$CrossType)*1)
@@ -280,7 +275,6 @@ write.csv(
   row.names = FALSE
 )
 
-write.table(x = aic, file=file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2.csv"), sep=";", row.names = FALSE)
 
 #Prediction of hatch rate depending on the proportion of Bal genes in the genome (?)
 newdata <- expand.grid(alpha1 = c(-1, 0, 1), dominance = -1, sum_eggcount_corr=100)
