@@ -35,6 +35,7 @@ usethis::use_package("MuMIn")
 usethis::use_package("DHARMa")
 usethis::use_package("emmeans")
 usethis::use_package("multcomp")
+usethis::use_package("rlang")
 
 ## Update NAMESPACE file
 devtools::document()
