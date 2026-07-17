@@ -56,108 +56,7 @@ merged_data <- merged_data |>
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", row.names = FALSE)
 
 ```
-
-# Fit all zero-inflated GLMM with merged data
-## One dataset at a time (remove ?)
-```{r}
-## Example for one cross
-AmBal <- fit_ZIBinomial(crosses=c("Europe", "Am", "Bal"), data=merged_data)
-
-AmPar6<- fit_ZIBinomial(crosses=c("Europe", "Am", "Par6"), data=merged_data)
-
-## F1
-AmF1Bal<- fit_ZIBinomial(crosses=c("Europe", "Am", "F1 Par6xBal"), data=merged_data, female="Female", male="Male")
-
-## F2
-AmF2Bal <- fit_ZIBinomial(crosses=c("Europe", "Am", "F2 Par6xBalxPar6xBal"), data=merged_data, female="Female2", male="Male2")
-
-```
 # Fit zero-inflated GLMM with Batch 8 and Batch 9 to estimate mean hatch rate and confidence intervals
-## Fit all zero-inflated models (remove ?)
-```{r}
-
-## List strains
-europe <- unique(merged_data$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
-europe <- europe[c(1, 4, 2, 3, 5, 6)]
-
-## Dataframe with all the strains
-crosses <- data.frame(continent=rep("Europe", length(europe)), uninf_strain = rep("Am", length(europe)), inf_strain= europe)
-
-## Fit all models on all the crosses function
-results <- apply(crosses, 1, fit_ZIBinomial, female="Female", male="Male", nbootsim=500)
-
-## Extract the results from all models
-crossnum <- 1:nrow(crosses)
-
-confintp1 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp1"))
-
-confintp2 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp2"))
-
-AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="modelaicc"))
-
-CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
-
-#Fit m1 model to estimate hatch rate for F1 Par6xBal
-#Remove rows for F1 Par6xBal
-confintp2 <- confintp2 |>
-dplyr::filter(!infstrain %in% c("F1 Par6xBal"))
-
-##Subset the data with a single type of cross
-dat2 <- merged_data[merged_data$Female%in%c("Am", "F1 Par6xBal")&merged_data$Male%in%c("Am", "F1 Par6xBal"), ]
-
-## Fit m1 model to measure hatch rate
-#m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=dat2, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-
-m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-
-m8 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ -1 + CrossType, family=binomial, weight=sum_eggcount_corr)
-
-## Check the model
-glmmTMB::diagnose(fit=m1)
-summary(m8)
-
-aic2 <- MuMIn::model.sel( m1, m8)
-## Hatch rate
-(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
-
-(p1 <- 1/(1+exp(-glmmTMB::fixef(m8)$zi)))
-
-## Refit model nsim times
-b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=10, .progress="txt")
-  
-##Confidence intervals estimation
-confint_F1 <- bCI_tab(b=b1)
-  
-##Extract data
-confintp2_F1 <- confint_F1[grepl("cond", rownames(confint_F1)),]
-  
-  confintp2_F1 <- as.data.frame(confintp2_F1) |>
-  tibble::rownames_to_column(var = "type")
-  
-  ##Change format of the data for Par6
-  confintp2_F1 <- confintp2_F1 |>
-  dplyr::mutate(
-    continent   = "europe",
-    uninfstrain = "Am",
-    infstrain   = "F1 Par6xBal",
-  ) |>
-  dplyr::select(
-    continent, uninfstrain, infstrain,
-    type, Estimate, `2.5 %`, `97.5 %`
-  ) |>
-    dplyr::rename(
-    "2.5%"  = `2.5 %`,
-    "97.5%" = `97.5 %`)
-
-  ##Add information about hatch rate in Par6 line to the database
-  confintp2 <- dplyr::bind_rows(confintp2, confintp2_F1)
-
-## Export files
-write.table(x = AICC, file=file.path(here::here(), "data", "derived_data", "model_AICc_F1_F2.csv"), sep=";", row.names = FALSE)
-write.table(x = confintp1, file=file.path(here::here(), "data", "derived_data", "confintp1_F1_F2.csv"), sep=";", row.names = FALSE)
-write.table(x = confintp2, file=file.path(here::here(), "data", "derived_data", "confintp2_F1_F2.csv"), sep=";", row.names = FALSE)
-write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_estimates_F1_F2.csv"), sep=";", row.names = FALSE)
-```
 
 ## Fit one zero-inflated model for all the data 
 ```{r}
@@ -168,7 +67,7 @@ merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data
 
 # Fit m1 model for all the data in Batch8 and Batch9
 m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-glmmTMB::diagnose(fit=m1)
+#glmmTMB::diagnose(fit=m1)
 summary(m1)
 
 #Estimation of hatch rate from binomial part of the model
@@ -230,14 +129,14 @@ write.table(x = data_S3, file=file.path(here::here(), "data", "derived_data", "c
 
 # Fit model with different variants for different crosstypes
 ```{r}
-m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (0+  lme4::dummy(CrossType, "AmxPar6")|CoupleID)+ (0+ 
-lme4::dummy(CrossType, "AmxBal")|CoupleID)+ (0+  lme4::dummy(CrossType, "AmxF1 BalxPar6")|CoupleID)+ (0+  lme4::dummy(CrossType, "AmxF1 Par6xBal")|CoupleID)+
-(0+  lme4::dummy(CrossType, "AmxF2 BalxPar6xBalxPar6")|CoupleID)+ (0+ 
-lme4::dummy(CrossType, "AmxF2 Par6xBalxPar6xBal")|CoupleID), data=data_couple, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-glmmTMB::diagnose(fit=m1)
-summary(m1)
+#m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (0+  lme4::dummy(CrossType, "AmxPar6")|CoupleID)+ (0+ 
+#lme4::dummy(CrossType, "AmxBal")|CoupleID)+ (0+  lme4::dummy(CrossType, "AmxF1 BalxPar6")|CoupleID)+ (0+  lme4::dummy(CrossType, "AmxF1 Par6xBal")|CoupleID)+
+#(0+  lme4::dummy(CrossType, "AmxF2 BalxPar6xBalxPar6")|CoupleID)+ (0+ 
+#lme4::dummy(CrossType, "AmxF2 Par6xBalxPar6xBal")|CoupleID), data=data_couple, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
+#glmmTMB::diagnose(fit=m1)
+#summary(m1)
 
-m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=data_couple, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
+#m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=data_couple, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
 ```
 
 # Fit models to test genetic effects
@@ -284,42 +183,42 @@ dat_g$X <- as.numeric(as.character(dat_g$X))
 ## Fit saturated model (generation x cross direction)
 m0 <- glmmTMB::glmmTMB(prop ~  -1 + CrossType + (1| CoupleID) , data=dat_g, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m0)
-glmmTMB::diagnose(m0)
+#glmmTMB::diagnose(m0)
 
 ## Cytoplasmic effect (with CrossType In (function (start, objective, gradient = NULL, hessian = NULL,  : NA/NaN function evaluation)
 m1 <- glmmTMB::glmmTMB(prop ~ -1 + cyto + (1| CoupleID) , data=dat_g, ziformula=~  -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m1)
-glmmTMB::diagnose(m1)
+#glmmTMB::diagnose(m1)
 
 ## Additive autosomal effect
 m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m2)
-glmmTMB::diagnose(m2)
+#glmmTMB::diagnose(m2)
 
 ## X effect (does not converge)
 m3 <- glmmTMB::glmmTMB(prop ~ X + (1 | CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m3)
-glmmTMB::diagnose(m3)
+#glmmTMB::diagnose(m3)
 
 ## Cytoplasmic and additive autosomal effects
 m4 <- glmmTMB::glmmTMB(prop ~ alpha1 + cyto + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m4)
-glmmTMB::diagnose(m4)
+#glmmTMB::diagnose(m4)
 
 ## Autosomal additive and dominance effects
 m5 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m5)
-glmmTMB::diagnose(m5)
+#glmmTMB::diagnose(m5)
 
 ## Cytoplasmic, additive autosomal and dominance autosomal effects
 m6 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + cyto + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m6)
-glmmTMB::diagnose(m6)
+#glmmTMB::diagnose(m6)
 
 ## Effect of X, additive autosomal and dominance autosomal effects
 m7 <- glmmTMB::glmmTMB(prop ~ alpha1 + X + dominance + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
 summary(m7)
-glmmTMB::diagnose(m7)
+#glmmTMB::diagnose(m7)
 
 aic <- as.data.frame (MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7))
 
@@ -449,7 +348,7 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 ```{r, eval=TRUE}
 
 ## Read data
-data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2_F1_F2_model_m1.csv"), sep=",", header = TRUE))
+data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2_F1_F2_model_m1.csv"), sep=";", header = TRUE))
 
 head(data)
 
@@ -485,13 +384,13 @@ observed <- observed |>
 
 #Compute confidence intervals for mortality
 dat <-observed |>
-dplyr::mutate (X2.5m=1-X2.50.) |>
-dplyr::mutate (X97.5m=1-X97.50.) 
+dplyr::mutate (X2.5m=1-X2.5..) |>
+dplyr::mutate (X97.5m=1-X97.5..) 
 
 #Prediction of mortality depending on the proportion of Bal genes for the line in the figure
 ##Fit m2 model for additive effect only with parental strains (Additive autosomal effect)
 ###Load the data 
-merged_data_p <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "CoupleID_test_cross.csv"), sep=";", header = TRUE))
+ merged_data_p <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "CoupleID_test_cross.csv"), sep=";", header = TRUE))
 
 strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
@@ -675,7 +574,7 @@ merged_data_p <- tibble::as_tibble(read.table(file = file.path(here::here(), "da
 
 strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
-dat_p <- merged_data[merged_data$CrossType%in%crosstype, ]
+dat_p <- merged_data_p[merged_data_p$CrossType%in%crosstype, ]
 
 #Define variable for autosomal effect (Par6: -1, Bal:1)
 dat_p$alpha1 <- as.factor(dat_p$CrossType)
@@ -716,10 +615,10 @@ dplyr::distinct(Strain, .keep_all = TRUE)
 dat <- dat |>
   dplyr::mutate(
     prop_Bal = dplyr::case_when(
-      Strain == "F1 Par6xBal" ~ 0.475,
-      Strain == "F1 BalxPar6" ~ 0.475,
-      Strain == "F2 Par6xBalxPar6xBal" ~ 0.520,
-      Strain == "F2 BalxPar6xBalxPar6" ~ 0.520,
+      Strain == "F1 Par6xBal" ~ 0.460,
+      Strain == "F1 BalxPar6" ~ 0.460,
+      Strain == "F2 Par6xBalxPar6xBal" ~ 0.535,
+      Strain == "F2 BalxPar6xBalxPar6" ~ 0.535,
       TRUE ~ prop_Bal
     )
   )
@@ -728,8 +627,8 @@ dat <- dat |>
 dat <- dat |>
   dplyr::mutate(
     label_x = dplyr::case_when(
-      Strain_label == "Par6" ~ prop_Bal + 0.05,
-      Strain_label == "Bal" ~ prop_Bal - 0.05,
+      Strain_label == "Par6" ~ prop_Bal + 0.06,
+      Strain_label == "Bal" ~ prop_Bal + 0.02,
       Strain_label == "F1 Par6xBal" ~ prop_Bal - 0.12,
       Strain_label == "F1 BalxPar6" ~ prop_Bal - 0.12,
       Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ prop_Bal + 0.20,
@@ -737,12 +636,12 @@ dat <- dat |>
       TRUE ~ prop_Bal
     ),
     label_y = dplyr::case_when(
-      Strain_label == "Par6" ~ cytopl + 0.05,
-      Strain_label == "Bal" ~ cytopl + 0.05,
-      Strain_label == "F1 BalxPar6" ~ cytopl + 0.05,
-      Strain_label == "F1 Par6xBal" ~ cytopl + 0.05,
-      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ cytopl - 0.07,
-      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ cytopl - 0.07,
+      Strain_label == "Par6" ~ cytopl + 0.1,
+      Strain_label == "Bal" ~ cytopl + 0.1,
+      Strain_label == "F1 BalxPar6" ~ cytopl - 0.07,
+      Strain_label == "F1 Par6xBal" ~ cytopl - 0.07,
+      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ cytopl + 0.08,
+      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ cytopl + 0.08,
       TRUE ~ cytopl
     )
   )
@@ -751,7 +650,7 @@ dat <- dat |>
 
 pBal1 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Bal, y = cytopl, fill = Strain), size = 15, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_point(data = dat, aes(x = prop_Bal, y = cytopl, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
   geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
@@ -762,13 +661,42 @@ pBal1 <- ggplot() +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
   theme_classic() +
-  theme(plot.title = element_text(size = 50, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal1
 #save bar plot
 title_plot <- "Mortality_rate_F1_F2_Par6_Bal_cytopl.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal1, base_height = 30/cm(1),
+                   base_width = 40/cm(1), dpi = 1200)
+
+# Only for F1
+
+dat2<- dat |>
+  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
+
+## Predicted embryo mortality for cytoplasmic effect
+
+pBal1_F1 <- ggplot() +
+  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
+  geom_point(data = dat2, aes(x = prop_Bal, y = cytopl, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
+  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
+  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Cytoplasmic effect") +
+  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
+  theme_classic() +
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+pBal1_F1
+#save bar plot
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_cytopl_F1.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   pBal1_F1, base_height = 30/cm(1),
                    base_width = 40/cm(1), dpi = 1200)
 
 ```
@@ -791,7 +719,7 @@ bal <- dat |>
 
 
 dom_F1 <- par6
-dom_F2 <- par6 + (bal - par6) * 0.75
+dom_F2 <- par6 + (bal - par6) * 0.25
 
 dat <- dat |> dplyr::mutate(
     dominance = dplyr::case_when(
@@ -803,10 +731,10 @@ dat <- dat |> dplyr::mutate(
 dat <- dat |>
   dplyr::mutate(
     prop_Bal = dplyr::case_when(
-      Strain == "F1 Par6xBal" ~ 0.475,
-      Strain == "F1 BalxPar6" ~ 0.520,
-      Strain == "F2 Par6xBalxPar6xBal" ~ 0.475,
-      Strain == "F2 BalxPar6xBalxPar6" ~ 0.520,
+      Strain == "F1 Par6xBal" ~ 0.460,
+      Strain == "F1 BalxPar6" ~ 0.535,
+      Strain == "F2 Par6xBalxPar6xBal" ~ 0.460,
+      Strain == "F2 BalxPar6xBalxPar6" ~ 0.535,
       TRUE ~ prop_Bal
     )
   )
@@ -815,21 +743,21 @@ dat <- dat |>
 dat <- dat |>
   dplyr::mutate(
     label_x = dplyr::case_when(
-      Strain_label == "Par6" ~ prop_Bal + 0.05,
-      Strain_label == "Bal" ~ prop_Bal - 0.05,
+      Strain_label == "Par6" ~ prop_Bal + 0.06,
+      Strain_label == "Bal" ~ prop_Bal + 0.02,
       Strain_label == "F1 Par6xBal" ~ prop_Bal - 0.12,
-      Strain_label == "F1 BalxPar6" ~ prop_Bal + 0.12,
+      Strain_label == "F1 BalxPar6" ~ prop_Bal + 0.14,
       Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ prop_Bal - 0.20,
-      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ prop_Bal + 0.18,
+      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ prop_Bal + 0.22,
       TRUE ~ prop_Bal
     ),
     label_y = dplyr::case_when(
-      Strain_label == "Par6" ~ dominance + 0.05,
-      Strain_label == "Bal" ~ dominance + 0.05,
-      Strain_label == "F1 BalxPar6" ~ dominance + 0.05,
-      Strain_label == "F1 Par6xBal" ~ dominance - 0.05,
-      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ dominance - 0.07,
-      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ dominance + 0.09,
+      Strain_label == "Par6" ~ dominance + 0.1,
+      Strain_label == "Bal" ~ dominance + 0.1,
+      Strain_label == "F1 BalxPar6" ~ dominance + 0.08,
+      Strain_label == "F1 Par6xBal" ~ dominance - 0.08,
+      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ dominance + 0.14,
+      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ dominance + 0.1,
       TRUE ~ dominance
     )
   )
@@ -838,26 +766,51 @@ dat <- dat |>
 
 pBal2 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Bal, y = dominance, fill = Strain), size = 15, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_point(data = dat, aes(x = prop_Bal, y = dominance, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
   geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Dominant effect") +
+  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Recessive effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
   theme_classic() +
-  theme(plot.title = element_text(size = 50, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal2
 #save bar plot
-title_plot <- "Mortality_rate_F1_F2_Par6_Bal_dominant.pdf"
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_dominant2.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal2, base_height = 30/cm(1),
                    base_width = 40/cm(1), dpi = 1200)
+# Only for F1
 
+dat2<- dat |>
+  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
+
+pBal2_F1 <- ggplot() +
+  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
+  geom_point(data = dat2, aes(x = prop_Bal, y = dominance, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
+  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
+  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Recessive effect") +
+  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
+  theme_classic() +
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+pBal2_F1
+#save bar plot
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_dominant_F1.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   pBal2_F1, base_height = 30/cm(1),
+                   base_width = 40/cm(1), dpi = 1200)
 ```
 
 ## Plot for predicted F1 and F2 with X effect Par6 / Bal
@@ -883,8 +836,8 @@ dat <- dat |>
     prop_Bal = dplyr::case_when(
       Strain == "F1 Par6xBal" ~ 0.5,
       Strain == "F1 BalxPar6" ~ 0.5,
-      Strain == "F2 Par6xBalxPar6xBal" ~ 0.475,
-      Strain == "F2 BalxPar6xBalxPar6" ~ 0.520,
+      Strain == "F2 Par6xBalxPar6xBal" ~ 0.460,
+      Strain == "F2 BalxPar6xBalxPar6" ~ 0.535,
       TRUE ~ prop_Bal
     )
   )
@@ -893,8 +846,8 @@ dat <- dat |>
 dat <- dat |>
   dplyr::mutate(
     label_x = dplyr::case_when(
-      Strain_label == "Par6" ~ prop_Bal + 0.05,
-      Strain_label == "Bal" ~ prop_Bal - 0.05,
+      Strain_label == "Par6" ~ prop_Bal + 0.06,
+      Strain_label == "Bal" ~ prop_Bal + 0.02,
       Strain_label == "F1 Par6xBal" ~ prop_Bal + 0.12,
       Strain_label == "F1 BalxPar6" ~ prop_Bal - 0.12,
       Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ prop_Bal - 0.23,
@@ -902,12 +855,12 @@ dat <- dat |>
       TRUE ~ prop_Bal
     ),
     label_y = dplyr::case_when(
-      Strain_label == "Par6" ~ X + 0.05,
-      Strain_label == "Bal" ~ X + 0.05,
-      Strain_label == "F1 BalxPar6" ~ X + 0.05,
-      Strain_label == "F1 Par6xBal" ~ X - 0.05,
-      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ X + 0.07,
-      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ X - 0.07,
+      Strain_label == "Par6" ~ X + 0.1,
+      Strain_label == "Bal" ~ X + 0.1,
+      Strain_label == "F1 BalxPar6" ~ X + 0.1,
+      Strain_label == "F1 Par6xBal" ~ X - 0.1,
+      Strain_label == "F2 (Par6xBal)x(Par6xBal)" ~ X + 0.1,
+      Strain_label == "F2 (BalxPar6)x(BalxPar6)" ~ X - 0.1,
       TRUE ~ X
     )
   )
@@ -916,7 +869,7 @@ dat <- dat |>
 
 pBal3 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Bal, y = X, fill = Strain), size = 15, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_point(data = dat, aes(x = prop_Bal, y = X, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
   geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
@@ -927,13 +880,40 @@ pBal3 <- ggplot() +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
   theme_classic() +
-  theme(plot.title = element_text(size = 50, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal3
 #save bar plot
 title_plot <- "Mortality_rate_F1_F2_Par6_Bal_X.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal3, base_height = 30/cm(1),
+                   base_width = 40/cm(1), dpi = 1200)
+
+#Only for F1
+
+dat2<- dat |>
+  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
+
+pBal3_F1 <- ggplot() +
+  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
+  geom_point(data = dat2, aes(x = prop_Bal, y = X, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
+  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
+  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "X-linked effect") +
+  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
+  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
+  theme_classic() +
+  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
+
+pBal3_F1
+#save bar plot
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_X_F1.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   pBal3_F1, base_height = 30/cm(1),
                    base_width = 40/cm(1), dpi = 1200)
 
 ```
@@ -944,16 +924,41 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 library(ggplot2)
 library(patchwork)
 
+#For the paper
 top_plot = (pBal1 + pBal2 + pBal3)
-combined_plot <- (top_plot) + plot_annotation(tag_levels="A") & theme(plot.tag = element_text(size = 60, face = "bold")) 
-
-combined_plot
+combined_plot <- (top_plot) + plot_annotation(tag_levels="A") & theme(plot.tag = element_text(size = 60, face = "bold"))
 
 title_plot <- "Mortality_rate_F1_F2_Par6_Bal_all.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    combined_plot, base_height = 40/cm(1),
                    base_width = 120/cm(1), dpi = 1200)
+#Only for F1
+top_plot_F1 = (pBal1_F1 / pBal2_F1 / pBal3_F1) &
+  theme(
+    plot.margin = margin(0, 0, 0, 0)  # убираем внешние отступы
+  )
+combined_plot_F1 <- (top_plot_F1) + plot_annotation(tag_levels="A") & theme(plot.tag = element_text(size = 60, face = "bold")) 
 
+combined_plot_F1
+
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_all_F1.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   combined_plot_F1, base_height = 90/cm(1),
+                   base_width = 40/cm(1), dpi = 1200)
+
+#Only for F2
+top_plot_F2 = (pBal1 / pBal2 / pBal3) &
+  theme(
+    plot.margin = margin(0, 0, 0, 0)  # убираем внешние отступы
+  )
+combined_plot_F2 <- (top_plot_F2) + plot_annotation(tag_levels="A") & theme(plot.tag = element_text(size = 60, face = "bold")) 
+
+combined_plot_F2
+
+title_plot <- "Mortality_rate_F1_F2_Par6_Bal_all_F2.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   combined_plot_F2, base_height = 90/cm(1),
+                   base_width = 40/cm(1), dpi = 1200)
 
 ```
 

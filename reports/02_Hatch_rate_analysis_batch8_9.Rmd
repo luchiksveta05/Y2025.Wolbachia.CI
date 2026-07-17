@@ -1306,3 +1306,92 @@ cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal, base_height = 40/cm(1),
                    base_width = 50/cm(1), dpi = 1200)
 ```
+
+# Code from old file
+# Fit zero-inflated GLMM with Batch 8 and Batch 9 to estimate mean hatch rate and confidence intervals
+## Fit all zero-inflated models (remove ?)
+```{r}
+
+## List strains
+europe <- unique(merged_data$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
+europe <- europe[c(1, 4, 2, 3, 5, 6)]
+
+## Dataframe with all the strains
+crosses <- data.frame(continent=rep("Europe", length(europe)), uninf_strain = rep("Am", length(europe)), inf_strain= europe)
+
+## Fit all models on all the crosses function
+results <- apply(crosses, 1, fit_ZIBinomial, female="Female", male="Male", nbootsim=500)
+
+## Extract the results from all models
+crossnum <- 1:nrow(crosses)
+
+confintp1 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp1"))
+
+confintp2 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp2"))
+
+AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="modelaicc"))
+
+CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
+
+#Fit m1 model to estimate hatch rate for F1 Par6xBal
+#Remove rows for F1 Par6xBal
+confintp2 <- confintp2 |>
+dplyr::filter(!infstrain %in% c("F1 Par6xBal"))
+
+##Subset the data with a single type of cross
+dat2 <- merged_data[merged_data$Female%in%c("Am", "F1 Par6xBal")&merged_data$Male%in%c("Am", "F1 Par6xBal"), ]
+
+## Fit m1 model to measure hatch rate
+#m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=dat2, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
+
+m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
+
+m8 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ -1 + CrossType, family=binomial, weight=sum_eggcount_corr)
+
+## Check the model
+glmmTMB::diagnose(fit=m1)
+summary(m8)
+
+aic2 <- MuMIn::model.sel( m1, m8)
+## Hatch rate
+(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
+
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m8)$zi)))
+
+## Refit model nsim times
+b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=10, .progress="txt")
+  
+##Confidence intervals estimation
+confint_F1 <- bCI_tab(b=b1)
+  
+##Extract data
+confintp2_F1 <- confint_F1[grepl("cond", rownames(confint_F1)),]
+  
+  confintp2_F1 <- as.data.frame(confintp2_F1) |>
+  tibble::rownames_to_column(var = "type")
+  
+  ##Change format of the data for Par6
+  confintp2_F1 <- confintp2_F1 |>
+  dplyr::mutate(
+    continent   = "europe",
+    uninfstrain = "Am",
+    infstrain   = "F1 Par6xBal",
+  ) |>
+  dplyr::select(
+    continent, uninfstrain, infstrain,
+    type, Estimate, `2.5 %`, `97.5 %`
+  ) |>
+    dplyr::rename(
+    "2.5%"  = `2.5 %`,
+    "97.5%" = `97.5 %`)
+
+  ##Add information about hatch rate in Par6 line to the database
+  confintp2 <- dplyr::bind_rows(confintp2, confintp2_F1)
+
+## Export files
+write.table(x = AICC, file=file.path(here::here(), "data", "derived_data", "model_AICc_F1_F2.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp1, file=file.path(here::here(), "data", "derived_data", "confintp1_F1_F2.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp2, file=file.path(here::here(), "data", "derived_data", "confintp2_F1_F2.csv"), sep=";", row.names = FALSE)
+write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_estimates_F1_F2.csv"), sep=";", row.names = FALSE)
+
+```
