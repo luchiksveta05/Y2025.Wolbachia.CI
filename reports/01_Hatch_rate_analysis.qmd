@@ -30,7 +30,7 @@ data <- data  |>
 
 ##Summarize data for each CoupleID (1053 rows)
 merged_data <- data |>
-  dplyr::group_by(CoupleID, CrossType, Female, Male, Batch, Block, Year) |>
+  dplyr::group_by(CoupleID, CrossType, Female, Male, MaleAge, Batch, Block, Year) |>
   dplyr::summarise(sum_eggcount_corr = sum(EggCountCorr),
                    sum_larvacount = sum(LarvaeCount))
 
@@ -41,8 +41,8 @@ merged_data <- merged_data |>
 # Add nessesary information to the data frame
 # Add column female and male infection status
 ## Define infected and uninfected categories
-infected_categories <- c("Tok3", "Tok10", "T11", "Wat148", "Wat140", "Par6", "Day28", "Sap24", "Bal", "SFL", "Day58", "Rennes", "Trento", "Kor", "China", "Am^Bal", "Am^Trento", "Am^Rennes", "Am^Par6")
-uninfected_categories <- c("Am", "Tok18", "Day80", "Wat120", "Mon47", "Par7", "BalT", "RennesT", "TrentoT", "Sap11")
+infected_categories <- c("Par6", "Bal", "Rennes", "Trento", "Am^Bal", "Am^Trento", "Am^Rennes", "Am^Par6")
+uninfected_categories <- c("Am", "Mon47", "Par7", "BalT", "RennesT", "TrentoT")
 
 ## Apply the function to both females and males
 merged_data <- merged_data |>
@@ -1151,6 +1151,274 @@ coefp2 <- glmmTMB::fixef(m3)$cond
 exp(coefp2[1]-coefp2[2])
 
 ```
+# Fit zero-inflated GLMM to test for male age effect
+
+```{r}
+library(rlang)
+
+dat_age <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+#Compute hatch rate 
+dat_age$prop <- dat_age$sum_larvacount / dat_age$sum_eggcount_corr
+
+#Fit four best models for for Drosophila lines separately
+
+## Subset the data with only Bal line
+dat_age <- dat_age[dat_age$Female%in%c("Am", "Bal")&dat_age$Male%in%c("Am", "Bal"), ]
+
+##Fit m3 model (it is too complicated, problems with the model)
+m3_Bal_no_age <- glmmTMB::glmmTMB(prop ~ -1 + CrossType + (1 | CoupleID), data = dat_age, ziformula = ~ -1 + CrossType, family = binomial, weights = sum_eggcount_corr)
+
+m3_Bal_age <- glmmTMB::glmmTMB(prop ~ -1 + CrossType + MaleAge + (1 | CoupleID), data = dat_age, ziformula = ~ -1 + CrossType, family = binomial, weights = sum_eggcount_corr)
+
+summary(m3_Bal_age)
+
+anova(m3_Bal_no_age, m3_Bal_age)
+
+MuMIn::model.sel(
+  m3_Bal_no_age,
+  m3_Bal_age,
+  rank = "AICc"
+)
+
+m3_Bal_no_age$sdr$pdHess
+m3_Bal_age$sdr$pdHess
+
+glmmTMB::diagnose(m3_Bal_no_age)
+
+#Check model without CoupleID effect (it is working) 
+
+m3_Bal_no_RE <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ -1 + CrossType, data = dat_age, ziformula = ~ -1 + CrossType, family = binomial)
+
+m3_Bal_age_no_RE <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ -1 + CrossType + MaleAge, data = dat_age, ziformula = ~ -1 + CrossType, family = binomial)
+
+m3_Bal_no_RE$sdr$pdHess
+m3_Bal_age_no_RE$sdr$pdHess
+summary(m3_Bal_age_no_RE)
+
+anova(m3_Bal_no_RE, m3_Bal_age_no_RE)
+
+MuMIn::model.sel(
+ m3_Bal_no_RE,
+  m3_Bal_age_no_RE,
+  rank = "AICc"
+)
+
+# Fit model for only Test crosses
+##Load and filter the data
+dat_age <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+dat_age <- dat_age |>
+  dplyr::filter(CrossType %in% c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm"))
+
+dat_age <- dat_age |> dplyr::filter(Cross == "Test cross W- x W+" & !is.na(MaleAge))
+
+##Fit model for Test crosses only
+m_CI_no_age_zi1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m3_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_age, ziformula = ~ -1 + Male, family = binomial, weights = sum_eggcount_corr)
+
+m3_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_age, ziformula = ~ -1 + Male, family = binomial, weights = sum_eggcount_corr)
+
+summary(m_CI_age)
+summary(m_CI_no_age)
+
+anova(m_CI_no_age, m_CI_age)
+
+MuMIn::model.sel(
+  m_CI_no_age,
+  m_CI_age,
+  rank = "AICc"
+)
+
+m_CI_no_age$sdr$pdHess
+m_CI_age$sdr$pdHess
+
+#Test model without CoupleID random effect 
+m_CI_no_age_no_RE <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male, data = dat_age, ziformula = ~ -1 + Male, family = binomial)
+res_CI <- DHARMa::simulateResiduals(m_CI_no_age_no_RE)
+plot(res_CI)
+DHARMa::testDispersion(res_CI)
+DHARMa::testZeroInflation(res_CI)
+
+###Fit m1 model without difference in zero-inflation part
+m1_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m1_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m1_CI_no_age$sdr$pdHess
+m1_CI_age$sdr$pdHess
+
+summary(m1_CI_age)
+summary(m1_CI_no_age)
+
+anova(m1_CI_no_age, m1_CI_age)
+
+MuMIn::model.sel(
+  m1_CI_no_age,
+  m1_CI_age,
+  rank = "AICc"
+)
+
+##Fit model m1 only with Trento and Bal
+dat_CI <- dat_age |> dplyr::filter(Male %in% c("Bal", "Trento")) 
+
+m1_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m1_CI_no_age_BFGS <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr, control = glmmTMB::glmmTMBControl(optimizer = optim, optArgs = list(method = "BFGS")))
+summary(m1_CI_no_age_BFGS)
+m1_CI_no_age_BFGS$sdr$pdHess
+
+m1_CI_age_BFGS <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr, control = glmmTMB::glmmTMBControl(optimizer = optim, optArgs = list(method = "BFGS")))
+
+m1_CI_age_BFGS$sdr$pdHess
+summary(m1_CI_age_BFGS)
+
+anova(m1_CI_no_age_BFGS, m1_CI_age_BFGS)
+
+MuMIn::model.sel(
+  m1_CI_no_age_BFGS,
+  m1_CI_age_BFGS,
+  rank = "AICc"
+)
+
+m1_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m1_CI_no_age$sdr$pdHess
+m1_CI_age$sdr$pdHess
+
+summary(m1_CI_age)
+summary(m1_CI_no_age)
+
+anova(m1_CI_no_age, m1_CI_age)
+
+MuMIn::model.sel(
+  m1_CI_no_age,
+  m1_CI_age,
+  rank = "AICc"
+)
+
+#Fit model only for Bal test cross
+dat_Bal_CI <- dat_CI |> dplyr::filter(Male == "Bal") 
+
+m_Bal_no_age <- glmmTMB::glmmTMB(hatchrate ~ 1 + (1 | CoupleID), data = dat_Bal_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Bal_age <- glmmTMB::glmmTMB(hatchrate ~ MaleAge + (1 | CoupleID), data = dat_Bal_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Bal_no_age$sdr$pdHess
+m_Bal_age$sdr$pdHess
+
+summary(m_Bal_age)
+
+logLik(m_Bal_no_age)
+logLik(m_Bal_age)
+
+anova(m_Bal_no_age, m_Bal_age)
+
+MuMIn::model.sel(m_Bal_no_age, m_Bal_age, rank = "AICc")
+
+
+## Fit null model
+m0 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ 1 , data=dat, ziformula=~1 , family=binomial)
+
+## Check the model
+glmmTMB::diagnose(fit=m0)
+summary(m0)
+
+## Zero-inflated part of the model
+unique(predict(m0, type="zprob"))
+
+## Hatch rate
+unique(predict(m0, type="conditional"))
+
+## Combined probability (1-prob_no_mating) x hatch rate
+unique(predict(m0, type="response"))
+
+## Probability of having no mating
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m0)$zi)))
+
+## Hatch rate
+(p2 <-1/(1+exp(-glmmTMB::fixef(m0)$cond)))
+
+##Fitted probability of not dying
+(1-p1)*p2
+
+## Observed probability of not dying
+sum(dat$sum_larvacount)/sum(dat$sum_eggcount_corr)
+
+## cross type effect on hatch rate
+m1 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ 1 , family=binomial)
+
+## Check the model
+glmmTMB::diagnose(fit=m1)
+summary(m1)
+
+## Probability of having no mating
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m1)$zi)))
+
+## Hatch rate
+(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
+
+##Fitted probability of not dying
+(1-p1)*p2
+
+## Observed probability of not dying
+datCrossType$hatchrate
+
+## cross type effect on hatch rate and mating probability
+m2 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ 1 + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial)
+
+## Check the model
+glmmTMB::diagnose(fit=m2)
+summary(m2)
+
+## Probability of having no mating
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m2)$zi)))
+
+## Hatch rate
+(p2 <-1/(1+exp(-glmmTMB::fixef(m2)$cond)))
+
+##Fitted probability of not dying
+(1-p1)*p2
+
+## Observed probability of not dying
+datCrossType$hatchrate
+
+## cross type effect on hatch rate and mating probability
+dat$prop <- dat$sum_larvacount / dat$sum_eggcount_corr
+m3 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount)~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial, control=glmmTMB::glmmTMBControl(optCtrl=list(iter.max=1e4, eval.max=1e4)))
+#m3 <- glmmTMB::glmmTMB(prop~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
+
+## Check the model
+#glmmTMB::diagnose(fit=m3)
+summary(m3)
+logLik(m3)
+## Probability of having no mating
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m3)$zi)))
+
+## Hatch rate
+(p2 <-1/(1+exp(-glmmTMB::fixef(m3)$cond)))
+
+## CI estimate
+1-p2[2]/p2[3]
+
+##Fitted probability of not dying
+(1-p1)*p2
+
+## Observed probability of not dying
+datCrossType$hatchrate
+
+MuMIn::AICc(m0, m1, m2, m3)
+MuMIn::model.sel(m0, m1, m2, m3)
+
+## Compute confidence interval for m3
+## Refit model nsim times
+b1 <- lme4::bootMer(m3, FUN=extract_model, nsim=500, .progress="txt")
+  
+## Extract all CIs
+confint <- bCI_tab(b=b1)
+
+```
 
 # Fit zero-inflated GLMM without merged data (not for publication)
 ```{r}
@@ -1273,43 +1541,5 @@ datCrossType$hatchrate
 MuMIn::AICc(m0, m1, m2, m3)
 MuMIn::model.sel(m0, m1, m2, m3)
 
-```
-
-# Old code
-```{r, eval=FALSE}
-
-##  Simulate new datasets from the fitted model, and calculate residuals by comparing the observed data to the new data
-## residuals are calculated conditional on all random effects using re.form = NULL  
-simulationOutput <- DHARMa::simulateResiduals(fittedModel = m2, refit = FALSE, re.form = NULL, seed = 12, n = 1000)
-
-## We expect the distribution of residuals to be uniform
-hist(residuals(simulationOutput))
-
-## qq-plot to detect overall deviations from the expected distribution
-DHARMa::plotQQunif(simulationOutput)
-
-## Plot of the residuals against the predicted value (regression of the empirical 0.25, 0.5 and 0.75 quantiles)
-DHARMa::plotResiduals(simulationOutput)
-
-## Test for overdispersion
-DHARMa::testDispersion(simulationOutput, type = c("DHARMa", "PearsonChisq"))
-
-## Test for zero-inflation
-DHARMa::testZeroInflation(simulationOutput)
-
-# often useful to test dispersion per group (in particular for binomial data, see vignette)
-simulationOutputAggregated = DHARMa::recalculateResiduals(simulationOutput, group = data$CrossType)
-DHARMa::testDispersion(simulationOutputAggregated)
-
-m3 <- glmmTMB::glmmTMB(
-  cbind(LarvaeCount, EggCountCorr) ~ 1 + Flip + (1 | CoupleID), 
-  data = dat, 
-  ziformula = ~ -1 + CrossType, 
-  family = binomial
-)
-
-## Check the model
-glmmTMB::diagnose(fit=m3)
-summary(m3)
 
 ```

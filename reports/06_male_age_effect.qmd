@@ -1,0 +1,133 @@
+---
+title: "Effect of male age on hatch rate"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+## Load packages
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+library(rlang)
+
+```
+
+## Load the data
+
+```{r}
+
+dat_age <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+```
+
+## Fit model for Test crosses: all four lines
+
+```{r}
+
+## Filter the data
+dat_test_age <- dat_age |>
+  dplyr::filter(CrossType %in% c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm"))
+
+dat_test_age <- dat_test_age |> dplyr::filter(Cross == "Test cross W- x W+" & !is.na(MaleAge))
+
+table(dat_test_age$Male, dat_test_age$MaleAge)
+
+m_test_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_test_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_test_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_test_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+### Convergence and model comparison
+
+m_test_no_age$sdr$pdHess
+m_test_age$sdr$pdHess
+
+summary(m_test_age)
+logLik(m_test_no_age)
+logLik(m_test_age)
+
+anova(m_test_no_age, m_test_age)
+MuMIn::model.sel(m_test_no_age, m_test_age, rank = "AICc")
+```
+
+## Fit model for Test crosses: CI-lines only (Bal and Trento)
+
+```{r}
+dat_CI_age <- dat_test_age |> dplyr::filter(Male %in% c("Bal", "Trento"))
+
+table(dat_CI_age$Male, dat_CI_age$MaleAge)
+
+m_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_CI_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_CI_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_CI_no_age$sdr$pdHess
+m_CI_age$sdr$pdHess
+
+summary(m_CI_age)
+logLik(m_CI_no_age)
+logLik(m_CI_age)
+
+anova(m_CI_no_age, m_CI_age)
+MuMIn::model.sel(m_CI_no_age, m_CI_age, rank = "AICc")
+```
+
+## Fit model for Test crosses: Bal line only
+
+```{r}
+dat_Bal_age <- dat_test_age |> dplyr::filter(Male == "Bal") 
+
+table(dat_Bal_age$MaleAge)
+
+m_Bal_no_age <- glmmTMB::glmmTMB(hatchrate ~ 1 + (1 | CoupleID), data = dat_Bal_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Bal_age <- glmmTMB::glmmTMB(hatchrate ~ MaleAge + (1 | CoupleID), data = dat_Bal_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Bal_no_age$sdr$pdHess
+m_Bal_age$sdr$pdHess
+
+summary(m_Bal_age)
+logLik(m_Bal_no_age)
+logLik(m_Bal_age)
+
+anova(m_Bal_no_age, m_Bal_age)
+MuMIn::model.sel(m_Bal_no_age, m_Bal_age, rank = "AICc")
+
+```
+
+## Control cross 3
+
+```{r}
+dat_control3_age <- dat_age |>
+  dplyr::filter(CrossType %in% c("BalxBal", "TrentoxTrento",  "RennesxRennes", "Par6xPar6")) 
+
+table(dat_control3_age$Male, dat_control3_age$MaleAge)
+
+m_control3_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_control3_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_control3_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_control3_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_control3_no_age$sdr$pdHess
+m_control3_age$sdr$pdHess
+
+summary(m_control3_age)
+logLik(m_control3_no_age)
+logLik(m_control3_age)
+
+anova(m_control3_no_age, m_control3_age)
+MuMIn::model.sel(m_control3_no_age, m_control3_age, rank = "AICc")
+```
+
+## Summary of observed hatch rates
+
+```{r}
+dat_test_age |> dplyr::group_by(Male, MaleAge) |> dplyr::summarise(n = dplyr::n(), mean_hatchrate = mean(hatchrate, na.rm = TRUE), median_hatchrate = median(hatchrate, na.rm = TRUE), .groups = "drop")
+
+dat_control3_age |> dplyr::group_by(Male, MaleAge) |> dplyr::summarise(n = dplyr::n(), mean_hatchrate = mean(hatchrate, na.rm = TRUE), median_hatchrate = median(hatchrate, na.rm = TRUE), .groups = "drop")
+```
