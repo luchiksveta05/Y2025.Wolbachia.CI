@@ -1303,7 +1303,7 @@ dat_Bal_CI <- dat_CI |> dplyr::filter(Male == "Bal")
 
 m_Bal_no_age <- glmmTMB::glmmTMB(hatchrate ~ 1 + (1 | CoupleID), data = dat_Bal_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
 
-m_Bal_age <- glmmTMB::glmmTMB(hatchrate ~ MaleAge + (1 | CoupleID), data = dat_Bal_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+m_Bal_age <- glmmTMB::glmmTMB(hatchrate ~  MaleAge + (1 | CoupleID), data = dat_Bal_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
 
 m_Bal_no_age$sdr$pdHess
 m_Bal_age$sdr$pdHess
@@ -1316,6 +1316,27 @@ logLik(m_Bal_age)
 anova(m_Bal_no_age, m_Bal_age)
 
 MuMIn::model.sel(m_Bal_no_age, m_Bal_age, rank = "AICc")
+
+#Fit m1 model for Trento
+dat_Trento_CI <- dat_CI |> dplyr::filter(Male == "Trento")
+
+table(dat_Trento_CI$MaleAge)
+
+m_Trento_no_age <- glmmTMB::glmmTMB(hatchrate ~ 1 + (1 | CoupleID), data = dat_Trento_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Trento_age <- glmmTMB::glmmTMB(hatchrate ~ MaleAge + (1 | CoupleID), data = dat_Trento_CI, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+
+m_Trento_no_age$sdr$pdHess
+m_Trento_age$sdr$pdHess
+
+summary(m_Trento_age)
+
+logLik(m_Trento_no_age)
+logLik(m_Trento_age)
+
+anova(m_Trento_no_age, m_Trento_age)
+
+MuMIn::model.sel(m_Trento_no_age, m_Trento_age, rank = "AICc")
 
 
 ## Fit null model

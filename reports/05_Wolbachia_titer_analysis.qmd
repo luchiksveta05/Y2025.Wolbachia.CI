@@ -79,6 +79,22 @@ write.table(x = data1, file=file.path(here::here(), "data", "derived_data", "Cp_
 
 ```
 
+# Filter only data for the European lines for the CI paper
+```{r}
+data1 <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Cp_wolb.csv"), sep=",", header = TRUE))
+
+#Filter NA (85rows left)
+data1 <- data1 |>
+dplyr::filter(!is.na(data1$Cp_rep1)) 
+
+#Add continent to the dataset
+data1$Continent <- as.factor(ifelse(data1$Strain %in% c("Par6", "Trento", "Bal", "Rennes", "Am^Bal","Am^Trento", "Am^Par6",  "Am^Rennes"), "Europe",
+                         ifelse(data1$Strain %in% c("Wat140", "Wat148", "Day28", "Day58"), "America",
+                                ifelse(data1$Strain %in% c("Tok10", "Tok3", "Sap24", "Korea", "China"), "Asia", NA))))
+
+#Filter 
+```
+
 # Count Wolbachia relative density
 ```{r}
 
