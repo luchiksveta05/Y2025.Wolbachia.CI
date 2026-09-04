@@ -240,6 +240,8 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_est
 # Figure 3
 ```{r}
 
+library (rlang)
+
 #Read database
 merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
@@ -334,6 +336,9 @@ summary(m1)
   
   data_hatchrate <- data_hatchrate |>
 dplyr::distinct(CrossType, .keep_all = TRUE)
+  
+  ## Export file with median hatch rates for each type of cross
+write.table(x = data_hatchrate, file=file.path(here::here(), "data", "derived_data", "confint2_Europe.csv"), sep=";", row.names = FALSE)
 
 # Add information about hatch rate to the dataset
 median_hatch_rate <- dplyr::left_join(x=data_hatchrate, y=data1[, c("CoupleID", "CrossType", "CrossTypeLabel", "hatchrate","Female", "Male", "Pair", "Cross", "Batch", "Block", "Year")], by = "CrossType")
