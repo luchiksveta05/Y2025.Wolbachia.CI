@@ -2059,8 +2059,7 @@ merged_data <- merged_data  %>%
   dplyr::mutate(CrossType = as.factor(CrossType))%>%
   dplyr::mutate(CoupleID =as.factor(CoupleID))
 
-dataS2 <- merged_data %>%
-  dplyr::filter (Continent=="Europe") |>
+dataS2 <- merged_data |>
   dplyr::filter(CrossType %in% c("AmxAm","BalTxBalT", "AmxBalT", "BalTxAm", "TrentoTxTrentoT", "AmxTrentoT", "TrentoTxAm", "RennesTxAm", "AmxRennesT", "RennesTxRennesT", "AmxTrento", "TrentoxAm", "TrentoxTrento", "BalxBal", "AmxBal", "BalxAm", "RennesxAm", "AmxRennes", "RennesxRennes")) |> ##380 rows 
 dplyr::filter(Batch == 5) ##191
 
@@ -2250,6 +2249,10 @@ hatchrateplotS2 <- median_hatch_rate_reduced |>
           legend.background = element_rect(fill = "white"),
           legend.position = "top"
           )
+
+hatchrateplotS2_AB <- cowplot::ggdraw(hatchrateplotS2) +
+  cowplot::draw_label("A", x = 0.01, y = 0.91, hjust = 0, vjust = 1, size = 35, fontface = "bold") +
+  cowplot::draw_label("B", x = 0.50, y = 0.91, hjust = 0, vjust = 1, size = 35, fontface = "bold")
 
 #save bar plot
 title_plot <- "barbatchS2_tetr.pdf"
