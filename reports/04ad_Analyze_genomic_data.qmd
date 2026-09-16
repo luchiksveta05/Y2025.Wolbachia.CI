@@ -1,0 +1,291 @@
+---
+title: "04_Analyze genomic data"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#devtools::load_all()
+library(ggplot2)
+library(zoo)
+```
+
+# Coverage depth data
+## Mean depth
+```{r, eval=TRUE}
+data <- read.csv(file = file.path(here::here(), "data", "genomic_data", "mosdepth_data", "realized.cov.all"), sep=" ", header=TRUE)
+head(data)
+
+data$WolRatio <- 2*data$covW/(data$covA) 
+
+data[ data$ID%in%c("Col-FR-Bal001", "Col-IT-Tre000", "IT_Tre_Om300", "Iso-FR-Par006" , "Col-FR-Ren000"), ]
+
+```
+
+## Sequence coverage at each position
+
+The variation of coverage for the different individual was estimated with *samtools* using the following command:
+
+```{bash}
+#| eval: false
+for ii in ../data/genomic_data/bam_data/*.dedup.bam
+do
+
+samtools view -F 0x900 -O BAM $ii.dedup.bam wSuz_1 wSuz_2 wSuz_3 wSuz_4 |samtools depth -a - | gzip > $ii.wSuz.primary.depth.gz
+samtools view -F 0x100 -O BAM $ii.dedup.bam wSuz_1 wSuz_2 wSuz_3 wSuz_4 |samtools depth -a - | gzip > $ii.wSuz.primary_supp.depth.gz
+samtools view -bh -F 0x900 -O BAM $ii.dedup.bam wSuz_1 wSuz_2 wSuz_3 wSuz_4 > $ii.dedup.primary.bam
+samtools view -bh -F 0x100 -O BAM $ii.dedup.bam wSuz_1 wSuz_2 wSuz_3 wSuz_4 > $ii.dedup.primary_supp.bam
+done
+```
+
+and plotted per consecutive windows of 1 kb for all samples
+
+```{r wSuz coverage}
+det.sample <- read.table(file = file.path(here::here(), "data", "genomic_data", "ids.txt"), sep=" ", header=FALSE)
+
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=FALSE)
+colnames(gene.position) <- c("contig", "contig2", "start", "end", "gene_name", "gene", "type", "score", "strand")
+
+head(det.sample)
+names(det.sample)="Sample ID"
+
+
+#col.sample=rep(3,nrow(det.sample))
+#col.sample[which(grepl("Om300",det.sample$`Sample ID`) | grepl("Iso-",det.sample$`Sample ID`))]=4
+#col.sample[which(grepl("Col-",det.sample$`Sample ID`))]=5
+#col.sample[which(grepl("sub",det.sample$`Sample ID`) | grepl("CN-Kun",det.sample$`Sample ID`))]=8
+#col.sample[which(grepl("sim",det.sample$`Sample ID`))]=7
+#names(col.sample)=det.sample$`Sample ID`
+
+
+contig <- c("wSuz_1", "wSuz_2", "wSuz_3", "wSuz_4")
+
+#for(s in c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
+  s="Col-FR-Bal001"
+  tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
+  #tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".dedup.bam.wSuz.depth.gz"))), header=FALSE)
+  colnames(tmp) <- c("contig", "position", "coverage")
+  tmp <- tmp[tmp$contig %in% contig, ]
+
+  
+  # Calculate 1 kb rolling coverage separately for each contig
+  tmp$coverage_1kb <- NA_real_
+  
+  for (ctg in contig) {
+    
+    idx <- tmp$contig == ctg
+    
+    tmp$coverage_1kb[idx] <- zoo::rollmean(
+      tmp$coverage[idx],
+      k = 1000,
+      fill = NA,
+      align = "center"
+    )
+  }
+
+# Length of wSuz_1
+wSuz_1_length <- max(tmp$position[tmp$contig == "wSuz_1"])
+
+# Length of wSuz_2
+wSuz_2_length <- max(tmp$position[tmp$contig == "wSuz_2"])
+   
+# Length of wSuz_3
+wSuz_3_length <- max(tmp$position[tmp$contig == "wSuz_3"])
+
+
+gene.position$position <- (gene.position$start + gene.position$end)/2
+gene.position$plot_position <- gene.position$position
+gene.position$label_position <- gene.position$position
+
+## Wsuz_1 Type I
+gene.position$label_position[gene.position$start==691] <-  gene.position$label_position[gene.position$start==691]  + 100000
+gene.position$label_position[gene.position$start==823038] <-  gene.position$label_position[gene.position$start==823038]  - 100000
+## Wsuz_2 Type I
+gene.position$plot_position[gene.position$start==3609] <-  wSuz_1_length + gene.position$plot_position[gene.position$start==3609]
+gene.position$label_position[gene.position$start==3609] <-  wSuz_1_length + gene.position$label_position[gene.position$start==3609]  + 100000
+
+## Wsuz_1 Type II
+
+gene.position$label_position[gene.position$start==781710] <-  gene.position$label_position[gene.position$start==781710]  - 150000
+
+# Add offset
+tmp$plot_position <- tmp$position
+tmp$plot_position[tmp$contig != "wSuz_1"] <-
+  tmp$position[tmp$contig != "wSuz_1"] + wSuz_1_length
+
+tmp$plot_position[tmp$contig %in% c("wSuz_3", "wSuz_4")] <-
+  tmp$plot_position[tmp$contig %in% c("wSuz_3", "wSuz_4")] + wSuz_2_length
+
+tmp$plot_position[tmp$contig == "wSuz_4"] <-
+  tmp$plot_position[tmp$contig == "wSuz_4"] + wSuz_3_length
+
+tapply(tmp$plot_position, tmp$contig, median )
+
+# Plot
+plot(
+  tmp$plot_position[tmp$contig == "wSuz_1"] / 1e3,
+  tmp$coverage_1kb[tmp$contig == "wSuz_1"],
+  type = "l",
+  xlab = "Genomic position (kb)",
+  ylab = "Coverage (per 1 kb window)",
+  main = s,
+  xlim=c(0, max(tmp$plot_position)/1000),
+  ylim=c(0, max(tmp$coverage_1kb, na.rm=TRUE))
+)
+
+lines(
+  tmp$plot_position[tmp$contig == "wSuz_2"] / 1e3,
+  tmp$coverage_1kb[tmp$contig == "wSuz_2"],
+  type = "l",
+  col="red"
+)
+
+lines(
+  tmp$plot_position[tmp$contig == "wSuz_3"] / 1e3,
+  tmp$coverage_1kb[tmp$contig == "wSuz_3"],
+  type = "l",
+  col="black"
+)
+
+lines(
+  tmp$plot_position[tmp$contig == "wSuz_4"] / 1e3,
+  tmp$coverage_1kb[tmp$contig == "wSuz_4"],
+  type = "l",
+  col="red"
+)
+
+# Add a vertical line showing the contig boundary
+abline(
+  v = c(wSuz_1_length, wSuz_1_length+ wSuz_2_length, wSuz_1_length+ wSuz_2_length+wSuz_3_length) / 1e3,
+  lty = 1
+)
+
+# Add a vertical line showing the contig boundary
+abline(
+  v = gene.position$plot_position / 1e3,
+  lty = 3
+)
+
+text(x=gene.position$label_position[1:3] / 1e3, y= max(tmp$coverage_1kb, na.rm=TRUE), labels="cif type I")
+text(x=gene.position$label_position[4] / 1e3, y= max(tmp$coverage_1kb, na.rm=TRUE)*0.9, labels="cif type II")
+
+# Labels
+axis(
+  side = 3,
+  at = c(
+    wSuz_1_length / 2,
+    ( 2 * wSuz_1_length + wSuz_2_length) / 2,
+    (2*wSuz_1_length+ 2*wSuz_2_length + wSuz_3_length) / 2,
+    (2*wSuz_1_length+ 2*wSuz_2_length + 2*wSuz_3_length + max(tmp$position[tmp$contig == "wSuz_4"])) /2
+  ) / 1e3,
+  labels = contig,
+  line = 0,
+  cex=0.5
+)
+  
+# }
+```
+
+# Coverage depth at cif genes
+## Number of copies of cif genes
+```{r, eval=TRUE}
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=FALSE)
+colnames(gene.position) <- c("contig", "contig2", "start", "end", "gene_name", "gene", "type", "score", "strand")
+
+
+contig <- c("wSuz_1", "wSuz_2", "wSuz_3", "wSuz_4")
+
+#for(s in c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
+  s="Col-FR-Bal001"
+  tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
+  #tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".dedup.bam.wSuz.depth.gz"))), header=FALSE)
+  colnames(tmp) <- c("contig", "position", "Col-FR-Bal001")
+  tmp <- tmp[tmp$contig %in% contig, ]
+
+tmp <- tmp |>
+  dplyr::mutate(
+    gene = sapply(seq_len(nrow(tmp)), function(i) {
+      
+      hit <- gene.position$gene[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+      
+      if (length(hit) > 0) {
+        hit
+      } else {
+        NA
+      }
+    })
+  )
+
+tmp <- tmp|>
+  dplyr::left_join(y=gene.position[, c("gene", "type")], by="gene") |>
+  dplyr::relocate('Col-FR-Bal001', .after = dplyr::last_col())
+
+
+for(s in c("Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
+  #s="Col-FR-Ren000"
+  tmp2=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
+ tmp <- tmp|>
+  dplyr::mutate("{s}":=tmp2$V3)
+ 
+  }
+
+
+write.table(tmp, file=gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
+  row.names = FALSE,
+  col.names = TRUE,
+  sep = "\t",
+  quote = FALSE)
+```
+
+
+## Plot for Fig. 4D
+```{r, eval=TRUE}
+
+tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
+  header = TRUE,
+  sep = "\t")
+
+gene_coverage <- tmp |>
+  dplyr::filter(!is.na(gene)) |>
+  dplyr::filter(!grepl("sr3", gene)) |>
+  dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
+  dplyr::group_by(type, gene) |>
+  dplyr::summarise(
+    n = sum(!is.na(coverage)),
+    mean_coverage = mean(coverage, na.rm = TRUE),
+    sd_coverage = sd(coverage, na.rm = TRUE),
+    se = sd_coverage / sqrt(n),
+    t_critical = qt(0.975, df = n - 1),
+    ci_lower = mean_coverage - t_critical * se,
+    ci_upper = mean_coverage + t_critical * se,
+    .groups = "drop"
+  )
+
+ggplot(gene_coverage, aes(x = gene, y = mean_coverage, fill=type)) +
+  geom_col() +
+  geom_errorbar(
+    aes(ymin = mean_coverage-sd_coverage, ymax = mean_coverage+sd_coverage),
+    width = 0.2
+  ) +
+  scale_y_log10() +
+  theme_classic() +
+  labs(
+    x = "Gene",
+    y = "Mean coverage",
+    title = "Mean coverage per gene copy"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
