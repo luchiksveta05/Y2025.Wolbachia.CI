@@ -1,5 +1,5 @@
 ---
-title: "04_Analyze genomic data"
+title: "04ad_Analyze genomic data"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -250,17 +250,29 @@ write.table(tmp, file=gzfile(file.path(here::here(), "data", "genomic_data", "co
 
 
 ## Plot for Fig. 4D
+### Load coverage data
 ```{r, eval=TRUE}
 
-tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
+tmp <- tibble::as_tibble(read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
   header = TRUE,
-  sep = "\t")
+  sep = "\t"))
 
-gene_coverage <- tmp |>
+tmp <- tmp |>
   dplyr::filter(!is.na(gene)) |>
+  tidyr::pivot_longer(
+  cols = Col.FR.Bal001:Iso.FR.Par006,
+  names_to = c("strain"),
+  values_to = "coverage"
+  )
+```
+
+
+### By gene copy
+```{r, eval=TRUE}
+gene_coverage <- tmp |>
   dplyr::filter(!grepl("sr3", gene)) |>
   dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
-  dplyr::group_by(type, gene) |>
+  dplyr::group_by(strain, type, gene) |>
   dplyr::summarise(
     n = sum(!is.na(coverage)),
     mean_coverage = mean(coverage, na.rm = TRUE),
@@ -282,10 +294,10 @@ ggplot(gene_coverage, aes(x = gene, y = mean_coverage, fill=type)) +
   theme_classic() +
   labs(
     x = "Gene",
-    y = "Mean coverage",
-    title = "Mean coverage per gene copy"
+    y = "Mean coverage per gene copy",
+    title = "Mean coverage"
   ) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+  )+facet_wrap(~strain)
 ```
