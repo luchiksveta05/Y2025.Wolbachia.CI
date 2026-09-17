@@ -1,5 +1,5 @@
 ---
-title: "Compute repeatability"
+title: "Repeatability_analysis"
 author: "Svitlana Serga, Nicolas Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 output: 
@@ -13,9 +13,8 @@ output:
       smooth_scroll: false
 editor_options: 
   chunk_output_type: console
+  embed-resources: true
 ---
-
-
 ```{r setup, include =FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 devtools::load_all()
@@ -110,6 +109,10 @@ R_intra <- VarAmong_intra / (VarAmong_intra + VarWithin_intra)
 R_intra
 
 # 95% confidence interval
+
+#Function
+icc_fun <- function(model) { vc <- as.data.frame(lme4::VarCorr(model)); va <- vc$vcov[vc$grp == "PetriNumber"]; vw <- vc$vcov[vc$grp == "Residual"]; va / (va + vw) }
+
 set.seed(123)
 boot_intra <- lme4::bootMer(m_intra_eggs, FUN = icc_fun, nsim = 500, type = "parametric")
 CI_intra <- quantile(boot_intra$t, c(0.025, 0.975))
