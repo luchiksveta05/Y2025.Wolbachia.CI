@@ -29,8 +29,10 @@ library(Biostrings)
 ## Load data
 ```{r, eval=FALSE}
 
-## Load sample names with filter on q20
-vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
+## Load sample names without filter
+vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
+#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
+
 
 ## Read data
 wSuz.pooldata <- poolfstat::vcf2pooldata(vcf.file=vcf_path, poolsizes = NA, poolnames = NA, min.maf=0.01, min.cov.per.pool=-1)
@@ -49,8 +51,11 @@ head(wSuz.pooldata@readcoverage[, 1:20])
 
 head(wSuz.pooldata@refallele.readcount[, 1:20])
 
-## Check coverage of d. subpuchrella
+## Check coverage of wSpc
 sort(colSums(wSuz.pooldata@refallele.readcount[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
+
+## Check coverage of wRI
+sort(colSums(wSuz.pooldata@refallele.readcount[, grep("sim", wSuz.pooldata@poolnames)]))
 
 
 
@@ -76,7 +81,7 @@ head(geno_data, n=50)
 ## Only one polymorphic SNP in position 1990 of Type II cifB
 geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position==783699,]
 
-## No polymorphic SNP in Type I cifB (wrong reference genome for wRI?)
+## No polymorphic SNP in Type I cifB (polymorphism at position c(6495,6606,6859)-3609+1)
 geno_data[geno_data$Chromosome=="wSuz_2"&geno_data$Position>=3609 &geno_data$Position<=7131,]
 geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=691 &geno_data$Position<=4213,]
 geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=823038 &geno_data$Position<=826560,]
@@ -254,12 +259,22 @@ writeXStringSet(
 
 ## Look for polymorphic sites in cif genes
 ```{r, eval=TRUE}
-## Load sample names with filter on q20
+## Load sample names without filter
+#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
 vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
 vcf <- vcfR::read.vcfR(vcf_path)
 
+#gt <- extract.gt(vcf, element = "GT", as.numeric = FALSE)
+#dp <- extract.gt(vcf, element = "DP", as.numeric = TRUE)
+#gq <- extract.gt(vcf, element = "GQ", as.numeric = TRUE)
+#gt[dp < 10 | gq < 30] <- NA
+#vcf@gt[, -1] <- gt
+#good <- dp >= 10 & gq >= 30
+#site_fraction <- rowMeans(good, na.rm = TRUE)
+#vcf <- vcf[site_fraction >= 0.5, ]
+
 ## Select Samples
-samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "D-sub", "CN-Kun_KM5" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
+samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
 vcf9 <- vcf[, c("FORMAT", samples)]
 colnames(vcf9@gt)
 
@@ -327,7 +342,7 @@ table(cifAB_sites$gene)
 ## Extract genotypes at the selected site
 gt <- extract.gt(vcf9, element = "GT")
 gt_cifAB <- gt[cifAB_sites$row, , drop = FALSE]
-
+gt_cifAB
 
 
 ```
