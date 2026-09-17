@@ -1,3 +1,4 @@
+contig	contig2	start	end	gene_name	gene	type	score	strand
 wSuz_2	wSuz_2_RW2025a:ptg000237l	7186	8610	wSuz_typeI_cifA	TypeI_cifA_2	TypeI_cifAB	1000	-
 wSuz_1	wSuz_1_RW2025a:ptg000036l	4268	5692	wSuz_typeI_cifA	TypeI_cifA_1	TypeI_cifAB	1000	-
 wSuz_1	wSuz_1_RW2025a:ptg000036l	821560	822984	wSuz_typeI_cifA	TypeI_cifA_3	TypeI_cifAB	1000	+

@@ -50,8 +50,7 @@ and plotted per consecutive windows of 1 kb for all samples
 ```{r wSuz coverage}
 det.sample <- read.table(file = file.path(here::here(), "data", "genomic_data", "ids.txt"), sep=" ", header=FALSE)
 
-gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=FALSE)
-colnames(gene.position) <- c("contig", "contig2", "start", "end", "gene_name", "gene", "type", "score", "strand")
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
 
 head(det.sample)
 names(det.sample)="Sample ID"
@@ -196,9 +195,7 @@ axis(
 # Coverage depth at cif genes
 ## Number of copies of cif genes
 ```{r, eval=TRUE}
-gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=FALSE)
-colnames(gene.position) <- c("contig", "contig2", "start", "end", "gene_name", "gene", "type", "score", "strand")
-
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
 
 contig <- c("wSuz_1", "wSuz_2", "wSuz_3", "wSuz_4")
 
