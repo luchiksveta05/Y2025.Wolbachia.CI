@@ -1,14 +1,14 @@
-contig	contig2	start	end	gene_name	gene	type	score	strand
-wSuz_2	wSuz_2_RW2025a:ptg000237l	7186	8610	wSuz_typeI_cifA	TypeI_cifA_2	TypeI_cifAB	1000	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	4268	5692	wSuz_typeI_cifA	TypeI_cifA_1	TypeI_cifAB	1000	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	821560	822984	wSuz_typeI_cifA	TypeI_cifA_3	TypeI_cifAB	1000	+
-wSuz_2	wSuz_2_RW2025a:ptg000237l	3609	7131	wSuz_typeI_cifB	TypeI_cifB_2	TypeI_cifAB	6505	+
-wSuz_1	wSuz_1_RW2025a:ptg000036l	691	4213	wSuz_typeI_cifB	TypeI_cifB_1	TypeI_cifAB	6505	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	823038	826560	wSuz_typeI_cifB	TypeI_cifB_3	TypeI_cifAB	6505	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	780648	781700	wSuz_typeII_cifA	TypeII_cifA	TypeII_cifAB	1000	
-wSuz_1	wSuz_1_RW2025a:ptg000036l	781710	783974	wSuz_typeII_cifB	TypeII_cifB	TypeII_cifAB	4183	+
-wSuz_4	wSuz_4_RW2025a:ptg000692l	51753	53217	Sr3WO_barcode1	sr3WO_1	sr3WO	1000	-
-wSuz_2	wSuz_2_RW2025a:ptg000237l	268301	269765	Sr3WO_barcode1	sr3WO_2	sr3WO	1000	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	831016	832480	Sr3WO_barcode1	sr3WO_3	sr3WO	1000	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	185352	186044	wsp_wSuz	wsp	wsp_FtsZ	1000	-
-wSuz_1	wSuz_1_RW2025a:ptg000036l	532774	533970	FtsZ_wSuz	FtsZ	wsp_FtsZ	1000	-
+contig	contig2	contig3	start	end	gene_name	gene_name2	gene	type	score	strand
+wSuz_2	RW2025a:ptg000237l	wSuz_2 RW2025a:ptg000237l	7186	8610	wSuz_typeI_cifA	cifA	TypeI_cifA_2	TypeI_cifAB	1000	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	4268	5692	wSuz_typeI_cifA	cifA	TypeI_cifA_1	TypeI_cifAB	1000	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	821560	822984	wSuz_typeI_cifA	cifA	TypeI_cifA_3	TypeI_cifAB	1000	+
+wSuz_2	RW2025a:ptg000237l	wSuz_2 RW2025a:ptg000237l	3609	7131	wSuz_typeI_cifB	cifB	TypeI_cifB_2	TypeI_cifAB	6505	+
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	691	4213	wSuz_typeI_cifB	cifB	TypeI_cifB_1	TypeI_cifAB	6505	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	823038	826560	wSuz_typeI_cifB	cifB	TypeI_cifB_3	TypeI_cifAB	6505	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	780648	781700	wSuz_typeII_cifA	cifA	TypeII_cifA	TypeII_cifAB	1000	+
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	781710	783974	wSuz_typeII_cifB	cifB	TypeII_cifB	TypeII_cifAB	4183	+
+wSuz_4	RW2025a:ptg000692l	wSuz_4 RW2025a:ptg000692l	51753	53217	sr3WO_wSuz	sr3WO	sr3WO_1	sr3WO	1000	-
+wSuz_2	RW2025a:ptg000237l	wSuz_2 RW2025a:ptg000237l	268301	269765	sr3WO_wSuz	sr3WO	sr3WO_2	sr3WO	1000	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	831016	832480	sr3WO_wSuz	sr3WO	sr3WO_3	sr3WO	1000	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	185352	186044	wsp_wSuz	wsp	wsp	wsp_FtsZ	1000	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	532774	533970	FtsZ_wSuz	FtsZ	FtsZ	wsp_FtsZ	1000	-
