@@ -11,7 +11,7 @@
 #'
 
 # Define the infection status function
-extract_gene_fasta <- function(i, gene, ref) {
+extract_cif_genes <- function(i, gene, ref) {
 
     contig <- gene$contig3[i]
     start  <- gene$start[i]
