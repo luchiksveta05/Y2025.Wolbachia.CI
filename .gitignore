@@ -6,3 +6,4 @@
 .quarto
 data/genomic_data/assembly_China/
 data/genomic_data/bam_data/
+data/genomic_data/coverage.txt.gz
