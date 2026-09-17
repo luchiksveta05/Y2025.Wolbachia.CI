@@ -1,0 +1,312 @@
+---
+title: "Repeatability_analysis"
+author: "Svitlana Serga, Nicolas Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+output: 
+  html_document:
+    theme: "journal"
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: console
+  embed-resources: true
+---
+```{r setup, include =FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+```
+#Repeatability for egg count 
+#Import data
+
+```{r }
+
+## Load the data for egg count
+egg_rep <- read.table(file=file.path(here::here(), "data", "raw_data", "egg_count_repeatability_all.csv"), sep = ",", header=TRUE)
+
+##Filter rep 1 and rep2
+egg_rep12 <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::select(Batch, PetriNumber, Replicate, EggCount) %>% tidyr::pivot_wider(names_from = Replicate, values_from = EggCount, names_prefix = "Rep")
+
+## Plot correlation between two observations
+plot_egg_rep12 <-ggplot2::ggplot(egg_rep12, ggplot2::aes(x = Rep1, y = Rep2, colour = as.factor(Batch))) + ggplot2::geom_point(alpha = 0.6) + ggplot2::geom_abline(intercept = 0, slope = 1, linetype = "dashed") + ggplot2::labs(x = "First egg count", y = "Second egg count", colour = "Batch") + ggplot2::theme_classic()
+
+ggplot2::ggsave(here::here("plots", "egg_count_rep1_rep2.pdf"), plot = plot_egg_rep12, width = 6, height = 5)
+
+##Filter rep 1 and rep3
+egg_rep13 <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 3)) %>% dplyr::select(Batch, PetriNumber, Replicate, EggCount) %>% tidyr::pivot_wider(names_from = Replicate, values_from = EggCount, names_prefix = "Rep") %>% dplyr::filter(!is.na(Rep1), !is.na(Rep3))
+
+plot_egg_rep13 <- ggplot2::ggplot(egg_rep13, ggplot2::aes(x = Rep1, y = Rep3, colour = as.factor(Batch))) + ggplot2::geom_point(alpha = 0.6) + ggplot2::geom_abline(intercept = 0, slope = 1, linetype = "dashed") + ggplot2::labs(x = "First egg count", y = "Third egg count", colour = "Batch") + ggplot2::theme_classic()
+
+ggplot2::ggsave(here::here("plots", "egg_count_rep1_rep3.pdf"), plot = plot_egg_rep13, width = 6, height = 5)
+
+```
+#Calculate egg count repeatability for all the data
+```{r}
+
+# Batch as a factor
+egg_rep <- egg_rep %>% dplyr::mutate(Batch = as.factor(Batch), PetriNumber = as.factor(PetriNumber))
+
+# Mixed model
+m_rep_eggs <- lme4::lmer(EggCount ~ Batch + (1 | PetriNumber), data = egg_rep)
+
+# Model summary
+summary(m_rep_eggs)
+
+# Variance components
+vc_eggs <- as.data.frame(lme4::VarCorr(m_rep_eggs))
+
+# Calculate repeatability (ICC)
+VarAmong_eggs <- vc_eggs$vcov[vc_eggs$grp == "PetriNumber"]
+VarWithin_eggs <- vc_eggs$vcov[vc_eggs$grp == "Residual"]
+R_eggs <- VarAmong_eggs / (VarAmong_eggs + VarWithin_eggs)
+
+R_eggs
+
+plot(m_rep_eggs)
+qqnorm(resid(m_rep_eggs))
+qqline(resid(m_rep_eggs))
+
+#Log transformation 
+
+m_rep_eggs_log <- lme4::lmer(log(EggCount + 1) ~ Batch + (1 | PetriNumber), data = egg_rep)
+
+summary(m_rep_eggs_log)
+
+plot(m_rep_eggs_log)
+qqnorm(resid(m_rep_eggs_log))
+qqline(resid(m_rep_eggs_log))
+
+```
+#Calculate intra- and interobserver repeatability
+
+
+```{r}
+# Intraobserver repeatability
+
+# Select Replicate 1 and Replicate 2 for intra-observer repeatability
+egg_intra <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2) %>% dplyr::ungroup()
+
+# Check that Replicate 1 and Replicate 2 were counted by the same observer
+egg_intra_check <- egg_intra %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::summarise(n_observers = dplyr::n_distinct(Observer), .groups = "drop")
+table(egg_intra_check$n_observers) #45 pairs where observers are different
+
+# Filter 45 pairs
+egg_intra <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 1) %>% dplyr::ungroup()
+nrow(egg_intra)
+dplyr::n_distinct(egg_intra$PetriNumber)
+
+# Model with Batch effect and log transformation
+m_intra_eggs <- lme4::lmer(log(EggCount + 1) ~ Batch + (1 | PetriNumber), data = egg_intra)
+
+# Calculate repeatability
+vc_intra <- as.data.frame(lme4::VarCorr(m_intra_eggs))
+VarAmong_intra <- vc_intra$vcov[vc_intra$grp == "PetriNumber"]
+VarWithin_intra <- vc_intra$vcov[vc_intra$grp == "Residual"]
+R_intra <- VarAmong_intra / (VarAmong_intra + VarWithin_intra)
+R_intra
+
+# 95% confidence interval
+
+#Function
+icc_fun <- function(model) { vc <- as.data.frame(lme4::VarCorr(model)); va <- vc$vcov[vc$grp == "PetriNumber"]; vw <- vc$vcov[vc$grp == "Residual"]; va / (va + vw) }
+
+set.seed(123)
+boot_intra <- lme4::bootMer(m_intra_eggs, FUN = icc_fun, nsim = 500, type = "parametric")
+CI_intra <- quantile(boot_intra$t, c(0.025, 0.975))
+CI_intra
+
+write.csv(egg_intra, file = here::here("data", "derived_data", "egg_count_intra_repeatability.csv"), row.names = FALSE)
+
+# Write a table with repeatability and 95%CI
+repeatability_results <- data.frame(Trait = "Egg count", Type = "Intra-observer", N_measurements = nrow(egg_intra), N_Petri = dplyr::n_distinct(egg_intra$PetriNumber), R = R_intra, CI_low = NA, CI_high = NA)
+
+CI_intra <- quantile(boot_intra$t, c(0.025, 0.975))
+repeatability_results$CI_low <- CI_intra[1]
+repeatability_results$CI_high <- CI_intra[2]
+
+# Count inter-observer repeatability
+inter_12 <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 2) %>% dplyr::ungroup()
+
+inter_13 <- egg_rep %>% dplyr::filter(Replicate %in% c(1, 3)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 2) %>% dplyr::ungroup()
+
+#Check the same PetriDishes in replicates
+intersect(inter_12$PetriNumber, inter_13$PetriNumber)
+
+#Remove PetriDishes which are the same (25 Petri Dishes)
+inter_13 <- inter_13 %>% dplyr::filter(!PetriNumber %in% inter_12$PetriNumber)
+intersect(inter_12$PetriNumber, inter_13$PetriNumber) #should be 0
+
+egg_inter <- dplyr::bind_rows(inter_12, inter_13)
+
+write.csv(egg_inter, file = here::here("data", "derived_data", "egg_count_inter_repeatability.csv"), row.names = FALSE)
+
+# Use model which includes Batch and Observer effects and log transformation (it is impossible to include Batch effect as Batch and observer are confounded)
+m_inter_eggs <- lme4::lmer(log(EggCount + 1) ~ Observer + (1 | PetriNumber), data = egg_inter)
+
+vc_inter <- as.data.frame(lme4::VarCorr(m_inter_eggs))
+VarAmong_inter <- vc_inter$vcov[vc_inter$grp == "PetriNumber"]
+VarWithin_inter <- vc_inter$vcov[vc_inter$grp == "Residual"]
+R_inter <- VarAmong_inter / (VarAmong_inter + VarWithin_inter)
+R_inter
+
+# Confidence interval for the repeatability
+set.seed(123)
+boot_inter <- lme4::bootMer(m_inter_eggs, FUN = icc_fun, nsim = 500, type = "parametric")
+
+CI_inter <- quantile(boot_inter$t, c(0.025, 0.975))
+CI_inter
+
+# Add inter-observer repeatability and 95% CI to the table
+repeatability_results <- dplyr::bind_rows(repeatability_results, data.frame(Trait = "Egg count", Type = "Inter-observer", N_measurements = nrow(egg_inter), N_Petri = dplyr::n_distinct(egg_inter$PetriNumber), R = R_inter, CI_low = CI_inter[1], CI_high = CI_inter[2]))
+
+rownames(repeatability_results) <- NULL
+
+```
+# Repeatability for larvae count
+# Import data
+
+```{r }
+
+# Repeatability for larval count
+# Import data
+
+## Load the data for larval count
+larvae_rep <- read.table(file=file.path(here::here(), "data", "raw_data", "larvae_count_repeatability_all.csv"), sep = ",", header=TRUE) %>% dplyr::filter(!is.na(Observer))
+
+## Filter rep 1 and rep2
+larvae_rep12 <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::select(Batch, PetriNumber, Replicate, LarvaeCount) %>% tidyr::pivot_wider(names_from = Replicate, values_from = LarvaeCount, names_prefix = "Rep") %>% dplyr::filter(!is.na(Rep1), !is.na(Rep2))
+
+## Plot correlation between two observations
+plot_larvae_rep12 <- ggplot2::ggplot(larvae_rep12, ggplot2::aes(x = Rep1, y = Rep2, colour = as.factor(Batch))) + ggplot2::geom_point(alpha = 0.6) + ggplot2::geom_abline(intercept = 0, slope = 1, linetype = "dashed") + ggplot2::labs(x = "First larval count", y = "Second larval count", colour = "Batch") + ggplot2::theme_classic()
+
+ggplot2::ggsave(here::here("plots", "larvae_count_rep1_rep2.pdf"), plot = plot_larvae_rep12, width = 6, height = 5)
+
+## Filter rep 1 and rep3
+larvae_rep13 <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 3)) %>% dplyr::select(Batch, PetriNumber, Replicate, LarvaeCount) %>% tidyr::pivot_wider(names_from = Replicate, values_from = LarvaeCount, names_prefix = "Rep") %>% dplyr::filter(!is.na(Rep1), !is.na(Rep3))
+
+plot_larvae_rep13 <- ggplot2::ggplot(larvae_rep13, ggplot2::aes(x = Rep1, y = Rep3, colour = as.factor(Batch))) + ggplot2::geom_point(alpha = 0.6) + ggplot2::geom_abline(intercept = 0, slope = 1, linetype = "dashed") + ggplot2::labs(x = "First larval count", y = "Third larval count", colour = "Batch") + ggplot2::theme_classic()
+
+ggplot2::ggsave(here::here("plots", "larvae_count_rep1_rep3.pdf"), plot = plot_larvae_rep13, width = 6, height = 5)
+
+```
+# Calculate larvae count repeatability for all the data
+
+```{r}
+
+# Batch and PetriNumber as factors
+larvae_rep <- larvae_rep %>% dplyr::mutate(Batch = as.factor(Batch), PetriNumber = as.factor(PetriNumber))
+
+# Mixed model
+m_rep_larvae <- lme4::lmer(LarvaeCount ~ Batch + (1 | PetriNumber), data = larvae_rep)
+
+# Model summary
+summary(m_rep_larvae)
+
+# Variance components
+vc_larvae <- as.data.frame(lme4::VarCorr(m_rep_larvae))
+
+# Calculate repeatability (ICC)
+VarAmong_larvae <- vc_larvae$vcov[vc_larvae$grp == "PetriNumber"]
+VarWithin_larvae <- vc_larvae$vcov[vc_larvae$grp == "Residual"]
+R_larvae <- VarAmong_larvae / (VarAmong_larvae + VarWithin_larvae)
+
+R_larvae
+
+plot(m_rep_larvae)
+qqnorm(resid(m_rep_larvae))
+qqline(resid(m_rep_larvae))
+
+# Log transformation
+m_rep_larvae_log <- lme4::lmer(log(LarvaeCount + 1) ~ Batch + (1 | PetriNumber), data = larvae_rep)
+
+summary(m_rep_larvae_log)
+
+plot(m_rep_larvae_log)
+qqnorm(resid(m_rep_larvae_log))
+qqline(resid(m_rep_larvae_log))
+
+```
+# Calculate intra- repeatability for larvae
+
+```{r}
+
+# Select Replicate 1 and Replicate 2
+larvae_intra <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2) %>% dplyr::ungroup()
+
+# Check observers
+larvae_intra_check <- larvae_intra %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::summarise(n_observers = dplyr::n_distinct(Observer), .groups = "drop")
+table(larvae_intra_check$n_observers) #59 pairs where observers are different
+
+# Keep only pairs counted by the same observer
+larvae_intra <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 1) %>% dplyr::ungroup()
+
+nrow(larvae_intra)
+dplyr::n_distinct(larvae_intra$PetriNumber)
+
+# Model with Batch effect and log transformation
+m_intra_larvae <- lme4::lmer(log(LarvaeCount + 1) ~ Batch + (1 | PetriNumber), data = larvae_intra)
+
+# Calculate repeatability
+vc_intra_larvae <- as.data.frame(lme4::VarCorr(m_intra_larvae))
+VarAmong_intra_larvae <- vc_intra_larvae$vcov[vc_intra_larvae$grp == "PetriNumber"]
+VarWithin_intra_larvae <- vc_intra_larvae$vcov[vc_intra_larvae$grp == "Residual"]
+R_intra_larvae <- VarAmong_intra_larvae / (VarAmong_intra_larvae + VarWithin_intra_larvae)
+R_intra_larvae
+
+# 95% confidence interval
+set.seed(123)
+boot_intra_larvae <- lme4::bootMer(m_intra_larvae, FUN = icc_fun, nsim = 500, type = "parametric")
+CI_intra_larvae <- quantile(boot_intra_larvae$t, c(0.025, 0.975))
+CI_intra_larvae
+
+write.csv(larvae_intra, file = here::here("data", "derived_data", "larvae_count_intra_repeatability.csv"), row.names = FALSE)
+
+# Add intra-observer larvae repeatability to the table
+repeatability_results <- dplyr::bind_rows(repeatability_results, data.frame(Trait = "Larval count", Type = "Intra-observer", N_measurements = nrow(larvae_intra), N_Petri = dplyr::n_distinct(larvae_intra$PetriNumber), R = R_intra_larvae, CI_low = unname(CI_intra_larvae[1]), CI_high = unname(CI_intra_larvae[2])))
+
+```
+# Calculate inter-observer repeatability for larvae
+
+```{r}
+# Replicate 1 vs Replicate 2 counted by different observers
+inter_larvae_12 <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 2)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 2) %>% dplyr::ungroup()
+
+# Replicate 1 vs Replicate 3 counted by different observers
+inter_larvae_13 <- larvae_rep %>% dplyr::filter(Replicate %in% c(1, 3)) %>% dplyr::group_by(Batch, PetriNumber) %>% dplyr::filter(dplyr::n() == 2, dplyr::n_distinct(Observer) == 2) %>% dplyr::ungroup()
+
+# Check the same Petri dishes in both datasets
+intersect(inter_larvae_12$PetriNumber, inter_larvae_13$PetriNumber)
+
+# Combine independent inter-observer pairs
+larvae_inter <- dplyr::bind_rows(inter_larvae_12, inter_larvae_13)
+
+#Check if there are two replicates for each Petri Dish
+larvae_inter %>% dplyr::count(Batch, PetriNumber) %>% dplyr::count(n)
+
+write.csv(larvae_inter, file = here::here("data", "derived_data", "larvae_count_inter_repeatability.csv"), row.names = FALSE)
+
+# Model with Observer effect and log transformation
+m_inter_larvae <- lme4::lmer(log(LarvaeCount + 1) ~ Observer + (1 | PetriNumber), data = larvae_inter)
+
+vc_inter_larvae <- as.data.frame(lme4::VarCorr(m_inter_larvae))
+VarAmong_inter_larvae <- vc_inter_larvae$vcov[vc_inter_larvae$grp == "PetriNumber"]
+VarWithin_inter_larvae <- vc_inter_larvae$vcov[vc_inter_larvae$grp == "Residual"]
+R_inter_larvae <- VarAmong_inter_larvae / (VarAmong_inter_larvae + VarWithin_inter_larvae)
+R_inter_larvae
+
+# Confidence interval
+set.seed(123)
+boot_inter_larvae <- lme4::bootMer(m_inter_larvae, FUN = icc_fun, nsim = 500, type = "parametric")
+CI_inter_larvae <- quantile(boot_inter_larvae$t, c(0.025, 0.975))
+CI_inter_larvae
+
+##Add to the table 
+repeatability_results <- dplyr::bind_rows(repeatability_results, data.frame(Trait = "Larval count", Type = "Inter-observer", N_measurements = nrow(larvae_inter), N_Petri = dplyr::n_distinct(larvae_inter$PetriNumber), R = R_inter_larvae, CI_low = unname(CI_inter_larvae[1]), CI_high = unname(CI_inter_larvae[2])))
+
+write.csv(repeatability_results, file = here::here("data", "derived_data", "count_repeatability_results.csv"), row.names = FALSE)
+
+```
+
