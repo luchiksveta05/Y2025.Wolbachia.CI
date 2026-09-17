@@ -8,3 +8,4 @@ data/genomic_data/assembly_China/
 data/genomic_data/bam_data/
 data/genomic_data/coverage.txt.gz
 data/genomic_data/vcf_data/all41.bamlist.freebayes.noclump.filtq20.vcf.gz
+data/genomic_data/vcf_data/all41.bamlist.freebayes.noclump.gvcf.gz
