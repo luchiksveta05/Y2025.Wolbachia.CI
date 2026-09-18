@@ -1,0 +1,33 @@
+---
+title: "04ad_Analyze genomic data"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#devtools::load_all()
+library(ggplot2)
+library(zoo)
+```
+# Load the packages
+
+```{r setup, include =FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+
+```
+
+# Genome assembly visualization
+## Load the data
+
+```{r, eval=TRUE}
+genome <- Biostrings::readDNAStringSet(here::here("data", "genomic_data", "wSuz_RW2025a.fasta"))
+
+```
