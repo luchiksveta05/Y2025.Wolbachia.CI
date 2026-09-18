@@ -222,6 +222,33 @@ tmp <- tmp |>
         NA
       }
     })
+  )|>
+  dplyr::mutate(
+    gene_relative_position = sapply(seq_len(nrow(tmp)), function(i) {
+      
+      start <- gene.position$start[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+      
+      
+      if (length(start) > 0) {
+        if(gene.position$strand[gene.position$start==start]=="+"){
+          tmp$position[i]-start+1
+        }else{
+          end <- gene.position$end[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+          end-tmp$position[i]+1
+        }
+        
+      } else {
+        NA
+      }
+    })
   )
 
 tmp <- tmp|>
@@ -237,6 +264,11 @@ for(s in c("Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
  
   }
 
+## Check the length of each gene copy
+tmp|>
+  dplyr::filter(!is.na(gene))|>
+  dplyr::group_by(gene)|>
+  dplyr::summarise(length=max(gene_relative_position))
 
 write.table(tmp, file=gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
   row.names = FALSE,
