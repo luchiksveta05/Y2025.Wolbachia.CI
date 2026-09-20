@@ -1,5 +1,5 @@
 ---
-title: "04_Analyze genomic data"
+title: "04c_Analyze genomic data"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -12,253 +12,25 @@ embed-resources: true
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-#devtools::load_all()
+devtools::load_all()
 library(ggplot2)
 library(poolfstat)
 library(zoo)
 library(ComplexHeatmap)
 library(patchwork)
 library(vcfR)
-library(ape)
-library(phangorn)
-library(Biostrings)
-
-```
-  
-# Load and prepare data
-## Load data
-```{r, eval=FALSE}
-
-## Load sample names without filter
-vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
-#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
-
-
-## Read data
-wSuz.pooldata <- poolfstat::vcf2pooldata(vcf.file=vcf_path, poolsizes = NA, poolnames = NA, min.maf=0.01, min.cov.per.pool=-1)
-
-## SNP infos
-head(wSuz.pooldata@snp.info)
-
-## 610 SNPs
-wSuz.pooldata@nsnp
-
-## 41 samples
-wSuz.pooldata@poolnames
-
-## Matrix for coverage and readcounts with SNPs in rows and samples in columns
-head(wSuz.pooldata@readcoverage[, 1:20])
-
-head(wSuz.pooldata@refallele.readcount[, 1:20])
-
-## Check coverage of wSpc
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
-
-## Check coverage of wRI
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("sim", wSuz.pooldata@poolnames)]))
-
-
-
-```
-
-## Select samples
-```{r, eval=FALSE}
-#samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM5", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1" )
-samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
-
-
-## Filter individuals
-wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(wSuz.pooldata@poolnames%in% samples))
-
-## Export genotypes
-geno_data <- round(wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage, 2)
-colnames(geno_data) <- wSuz.pooldata@poolnames
-
-## Add positions
-geno_data <- data.frame(wSuz.pooldata@snp.info, geno_data)
-
-head(geno_data, n=50)
-## Only one polymorphic SNP in position 1990 of Type II cifB
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position==783699,]
-
-## No polymorphic SNP in Type I cifB (polymorphism at position c(6495,6606,6859)-3609+1)
-geno_data[geno_data$Chromosome=="wSuz_2"&geno_data$Position>=3609 &geno_data$Position<=7131,]
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=691 &geno_data$Position<=4213,]
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=823038 &geno_data$Position<=826560,]
-	
-#write.table(x=geno_data, file=here::here("data/derived_data/wol_genotypes.csv"), sep=";", row.names=FALSE, quote = FALSE, col.names = TRUE)
-```
-
-## Filter SNPs
-```{r}
-
-## 0 individual samples with fewer than 85% of the SNPs covered
-ind.callrate <- apply(wSuz.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wSuz.pooldata@readcoverage))
-sum(ind.callrate<=0.9)
-
-## Filter 0 individual samples with fewer than 90% of the SNPs covered
-#wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(ind.callrate>0.9))
-
-## 36 SNPs with fewer than 90% of individual samples covered
-snp.callrate <- apply(wSuz.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wSuz.pooldata@readcoverage))
-sum(snp.callrate<=0.9)
-
-## Filter 36 SNPs with fewer than 90% of individual samples covered
-wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
-```
-
-# Check MAF across samples
-As expected from the presence of a single Wolbachia genotype, the MAF boxplot on the called SNPs shows a reduced genetic diversity (@fig-wSuzmaf). Still, some polymorphism is found at some SNPs in Bal, Trento and Par6, but less in Ren000 and IT_Tre_Om300 (this may also be related to structural variation among these strains ?)
-```{r, eval=FALSE}
-#| echo: false
-#| fig-height: 8
-#| fig-width: 8 
-#| fig-cap: "Distribution of the MAF of called wRI sites on all the samples ."
-#| fig-cap-location: bottom
-#| label: fig-wSuzmaf
-
-wSuz.maf <- 0.5-abs(0.5-wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage)
-colnames(wSuz.maf) <- wSuz.pooldata@poolnames
-mean.maf <- rowMeans(wSuz.maf)
-pairs(wSuz.maf)
-pairs(wSuz.maf[mean.maf<0.05,])
-boxplot(wSuz.maf,horizontal=T,las=1,xlab="MAF")
-
-## Add positions
-maf_data <- data.frame(wSuz.pooldata@snp.info, wSuz.maf)
-
-maf_data <- maf_data |>
-  tidyr::pivot_longer(
-  cols = CN.Kun_KM5:ZB_wRI_Dsim1,
-  names_to = c("strain"),
-  values_to = "maf"
-  )
-
-maf_data |>
- # dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
-  dplyr::group_by(strain) |>
-  dplyr::summarise(
-    n = sum(!is.na(maf)),
-    mean_coverage = mean(maf))
-
-p <- maf_data |>
-ggplot(aes(x = maf, fill=Chromosome))+
-  geom_histogram()+
-  facet_wrap(vars(strain))
-p
-
-maf_data |>
-  dplyr::filter(maf>0.3)
-```
-
-# PCA plot 
-```{r pca}
-#| echo: false
-#| fig-height: 16 
-#| fig-width: 24 
-#| fig-cap: "Random allele PCA of Wolbachia SNPs on all the 8 samples."
-#| fig-cap-location: bottom
-#| label: fig-wRIpca
-
-## Filter out bad SNPs
-#wRI.pooldata.filtered <- poolfstat::pooldata.subset(pooldata=wRI.pooldata,  snp.index = which(meanIso < 0.05))
-
-wSuz.pca=randomallele.pca(wSuz.pooldata, plot.pcs = NULL)
-
-## For the graph
-pch.type =rep(16, wSuz.pooldata@npools)
-pch.col  = rep(5, wSuz.pooldata@npools)
-pch.col[which(grepl("sub",wSuz.pooldata@poolnames) | grepl("CN-Kun",wSuz.pooldata@poolnames))]=8
-pch.col[which(grepl("sim",wSuz.pooldata@poolnames))]=7
-
-scree_data <- data.frame(PC = factor(paste0("PC", 1:length(wSuz.pca$perc.var)),levels = paste0("PC", 1:length(wSuz.pca$perc.var))),Variance = wSuz.pca$perc.var)
-
-library(ggplot2)
 library(ggrepel)
 library(gridExtra)
 
-# Plot the scree plot
-tmp1 <- ggplot(scree_data, aes(x = PC, y = Variance)) +
-  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
-  geom_point(size = 2) +  # Add points to show individual PC values
-  geom_line(group = 1, color = "black") +  # Line connecting the points
-  theme_minimal() +
-  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
-  ylim(0, max(wSuz.pca$perc.var))
-
-data=as.data.frame(wSuz.pca$pop.loadings)
-colnames(data)=paste0("PC",1:ncol(data))
-data$sample=wSuz.pooldata@poolnames
-data$strain=paste0("G",pch.col)
-data$strain[pch.col==8]="wSpc" ; data$strain[pch.col==7]="wRI" ; data$strain[pch.col==5]="wSuz" 
-
-# Plot using ggplot and ggrepel to avoid overlapping labels
-tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample, color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC2 (",round(wSuz.pca$perc.var[2],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample, color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC3 (",round(wSuz.pca$perc.var[3],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC4 (",round(wSuz.pca$perc.var[4],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-## Export graphs
-(tmp1 | tmp2 ) /
-      (tmp3 | tmp4)
-ggsave(file.path(here::here(), "plots", "Fig.SX_PCA.pdf"), width = 20, height = 20, units = "cm")
-
-rm(data)
 ```
 
-# Polymorphism in cif genes
-## Extract fasta for Cif A and B
-```{r, eval=TRUE}
-
-### Reference
-ref_seq <- readDNAStringSet(file.path(here::here(), "data", "genomic_data", "assembly_China", "wSuz_RW2025a.fasta"))
-# Check reference name and length
-names(ref_seq)
-width(ref_seq)
+# Look for polymorphic sites in cif genes
+The part is not used for the paper. Because the filtering with q20 remove reads in cif genes that map multiple times and have a low mapping quality
+```{r, eval=FALSE}
 
 ## Positions
-gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
-head(gene.position)
-cifAB_data <- gene.position[gene.position$gene_name2 == "cifA"|gene.position$gene_name2 == "cifB", ]
+ cifAB_data <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
 
-cifAB_seq <- DNAStringSet(
-  lapply(seq_len(nrow(cifAB_data)), extract_gene_fasta, gene=cifAB_data, ref=ref_seq))
-
-## Name of the sequences
-names(cifAB_seq) <- cifAB_data$gene
-
-writeXStringSet(
-  cifAB_seq,
-  file.path(
-    here::here(),
-    "data", "genomic_data",
-    "wSuz_typeI&II_cifAB.fasta"
-  )
-)
-
-```
-
-## Look for polymorphic sites in cif genes
-```{r, eval=TRUE}
 ## Load sample names without filter
 #vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
 vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
@@ -347,36 +119,203 @@ gt_cifAB
 
 ```
 
-# Plot tree
-## Alignement
+# Load and prepare data
+## Load data
+```{r, eval=TRUE}
+
+## Load sample names without filter
+#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
+vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
+
+## Read data
+wSuz.pooldata <- poolfstat::vcf2pooldata(vcf.file=vcf_path, poolsizes = NA, poolnames = NA, min.maf=0.01, min.cov.per.pool=-1)
+
+## SNP infos
+head(wSuz.pooldata@snp.info)
+
+## 610 SNPs
+wSuz.pooldata@nsnp
+
+## 41 samples
+wSuz.pooldata@poolnames
+
+## Matrix for coverage and readcounts with SNPs in rows and samples in columns
+head(wSuz.pooldata@readcoverage[, 1:20])
+
+head(wSuz.pooldata@refallele.readcount[, 1:20])
+
+## Check coverage of wSpc
+sort(colSums(wSuz.pooldata@refallele.readcount[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
+
+## Check coverage of wRI
+sort(colSums(wSuz.pooldata@refallele.readcount[, grep("sim", wSuz.pooldata@poolnames)]))
+
+```
+
+## Select samples
+```{r, eval=TRUE}
+#samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1" )
+samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
+
+## Filter individuals
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(wSuz.pooldata@poolnames%in% samples))
+
+## Export genotypes
+geno_data <- round(wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage, 2)
+colnames(geno_data) <- wSuz.pooldata@poolnames
+
+## Add positions
+geno_data <- data.frame(wSuz.pooldata@snp.info, geno_data)
+
+head(geno_data, n=50)
+## Only one polymorphic SNP in position 1990 of Type II cifB
+geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position==783699,]
+
+## No polymorphic SNP in Type I cifB (polymorphism at position c(6495,6606,6859)-3609+1)
+geno_data[geno_data$Chromosome=="wSuz_2"&geno_data$Position>=3609 &geno_data$Position<=7131,]
+geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=691 &geno_data$Position<=4213,]
+geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=823038 &geno_data$Position<=826560,]
+	
+#write.table(x=geno_data, file=here::here("data/derived_data/wol_genotypes.csv"), sep=";", row.names=FALSE, quote = FALSE, col.names = TRUE)
+```
+
+## Filter SNPs
+```{r}
+
+## 0 individual samples with fewer than 85% of the SNPs covered
+ind.callrate <- apply(wSuz.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wSuz.pooldata@readcoverage))
+sum(ind.callrate<=0.9)
+
+## Filter 0 individual samples with fewer than 90% of the SNPs covered
+#wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(ind.callrate>0.9))
+
+## 46 SNPs with fewer than 90% of individual samples covered
+snp.callrate <- apply(wSuz.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wSuz.pooldata@readcoverage))
+sum(snp.callrate<=0.9)
+
+## Filter 36 SNPs with fewer than 90% of individual samples covered
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
+```
+
+# Check MAF across samples
+As expected from the presence of a single Wolbachia genotype, the MAF boxplot on the called SNPs shows a reduced genetic diversity (@fig-wSuzmaf). Still, some polymorphism is found at some SNPs in Bal, Trento and Par6, but less in Ren000 and IT_Tre_Om300 (this may also be related to structural variation among these strains ?)
 ```{r, eval=FALSE}
-library(msa)
-library(Biostrings)
+#| echo: false
+#| fig-height: 8
+#| fig-width: 8 
+#| fig-cap: "Distribution of the MAF of called wRI sites on all the samples ."
+#| fig-cap-location: bottom
+#| label: fig-wSuzmaf
 
-# Read your FASTA
-fasta <- readDNAStringSet("Wolbachia_9samples.fasta")
+wSuz.maf <- 0.5-abs(0.5-wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage)
+colnames(wSuz.maf) <- wSuz.pooldata@poolnames
+mean.maf <- rowMeans(wSuz.maf)
+pairs(wSuz.maf)
+pairs(wSuz.maf[mean.maf<0.05,])
+boxplot(wSuz.maf,horizontal=T,las=1,xlab="MAF")
 
-# Multiple sequence alignment
-alignment <- msa(
-  fasta,
-  method = "ClustalW",
-  type = "dna"
-)
+## Add positions
+maf_data <- data.frame(wSuz.pooldata@snp.info, wSuz.maf)
 
-alignment
-## Convert to dan string set
-aligned <- as(alignment, "DNAStringSet")
+maf_data <- maf_data |>
+  tidyr::pivot_longer(
+  cols = CN.Kun_KM2:ZB_wRI_Dsim1,
+  names_to = c("strain"),
+  values_to = "maf"
+  )
 
-writeXStringSet(
-  aligned,
-  "Wolbachia_9samples_aligned.fasta"
-)
+maf_data |>
+ # dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
+  dplyr::group_by(strain) |>
+  dplyr::summarise(
+    n = sum(!is.na(maf)),
+    mean_coverage = mean(maf))
 
-width(aligned)
+p <- maf_data |>
+ggplot(aes(x = maf, fill=Chromosome))+
+  geom_histogram()+
+  facet_wrap(vars(strain))
+p
+
+maf_data |>
+  dplyr::filter(maf>0.3)
+```
+
+
+# Plot tree
+
+## PCA plot 
+```{r pca}
+#| echo: false
+#| fig-height: 16 
+#| fig-width: 24 
+#| fig-cap: "Random allele PCA of Wolbachia SNPs on all the 8 samples."
+#| fig-cap-location: bottom
+#| label: fig-wRIpca
+
+## Filter out bad SNPs
+#wRI.pooldata.filtered <- poolfstat::pooldata.subset(pooldata=wRI.pooldata,  snp.index = which(meanIso < 0.05))
+
+wSuz.pca=randomallele.pca(wSuz.pooldata, plot.pcs = NULL)
+
+## For the graph
+pch.type =rep(16, wSuz.pooldata@npools)
+pch.col  = rep(5, wSuz.pooldata@npools)
+pch.col[which(grepl("sub",wSuz.pooldata@poolnames) | grepl("CN-Kun",wSuz.pooldata@poolnames))]=8
+pch.col[which(grepl("sim",wSuz.pooldata@poolnames))]=7
+
+scree_data <- data.frame(PC = factor(paste0("PC", 1:length(wSuz.pca$perc.var)),levels = paste0("PC", 1:length(wSuz.pca$perc.var))),Variance = wSuz.pca$perc.var)
+
+# Plot the scree plot
+tmp1 <- ggplot(scree_data, aes(x = PC, y = Variance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
+  geom_point(size = 2) +  # Add points to show individual PC values
+  geom_line(group = 1, color = "black") +  # Line connecting the points
+  theme_minimal() +
+  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
+  ylim(0, max(wSuz.pca$perc.var))
+
+data=as.data.frame(wSuz.pca$pop.loadings)
+colnames(data)=paste0("PC",1:ncol(data))
+data$sample=wSuz.pooldata@poolnames
+data$strain=paste0("G",pch.col)
+data$strain[pch.col==8]="wSpc" ; data$strain[pch.col==7]="wRI" ; data$strain[pch.col==5]="wSuz" 
+
+# Plot using ggplot and ggrepel to avoid overlapping labels
+tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample, color=strain)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC2 (",round(wSuz.pca$perc.var[2],2),"%)"), title = "") +
+  scale_color_manual(values = c(5,7,8)) 
+
+tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample, color=strain)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC3 (",round(wSuz.pca$perc.var[3],2),"%)"), title = "") +
+  scale_color_manual(values = c(5,7,8)) 
+
+tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=strain)) +
+  geom_point(size=1) +  # Plot points for each sample
+  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
+  theme_minimal() + 
+  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
+       y = paste0("PC4 (",round(wSuz.pca$perc.var[4],2),"%)"), title = "") +
+  scale_color_manual(values = c(5,7,8)) 
+
+## Export graphs
+(tmp1 | tmp2 ) /
+      (tmp3 | tmp4)
+ggsave(file.path(here::here(), "plots", "Fig.SX_PCA.pdf"), width = 20, height = 20, units = "cm")
+
+rm(data)
 ```
 
 ## Clustering of variants
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 fstats <- poolfstat::compute.fstats(x=wSuz.pooldata, output.pairwise.div = TRUE, verbose = TRUE, computeF3 = FALSE, computeF4 = FALSE)
 
 ## Export divergence
@@ -402,3 +341,5 @@ show_heatmap_legend=FALSE,column_title = "Divergence (1-Q2)")
 div.hm
 
 ```
+
+
