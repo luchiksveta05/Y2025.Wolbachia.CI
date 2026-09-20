@@ -127,7 +127,9 @@ writeXStringSet(
 
 ## Step 1: Prepare sequences for alignment
 ```{r, eval=TRUE}
-
+#dir.create(file.path(
+#    here::here(),
+#    "data", "genomic_data", "fasta_for_tree"))
 # Load FASTA files
 wSuz <- readDNAStringSet(file.path(
     here::here(),
