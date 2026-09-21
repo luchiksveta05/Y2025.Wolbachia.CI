@@ -1,5 +1,5 @@
 ---
-title: "04c_Analyze genomic data"
+title: "04C_Analyze genomic data"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -19,429 +19,476 @@ library(zoo)
 library(ComplexHeatmap)
 library(patchwork)
 library(vcfR)
-library(ggrepel)
-library(gridExtra)
-
+library(ape)
+library(phangorn)
+library(Biostrings)
+library(ggmsa)
 ```
 
-# Look for polymorphic sites in cif genes
-The part is not used for the paper. Because the filtering with q20 remove reads in cif genes that map multiple times and have a low mapping quality
-```{r, eval=FALSE}
+# Phylogeny of cif genes
+## Extract fasta for Cif A and B
+```{r, eval=TRUE}
+
+### Reference
+ref_seq <- readDNAStringSet(file.path(here::here(), "data", "genomic_data", "assembly_China", "wSuz_RW2025a.fasta"))
+# Check reference name and length
+names(ref_seq)
+width(ref_seq)
 
 ## Positions
- cifAB_data <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
+head(gene.position)
+cifAB_data <- gene.position[gene.position$gene_name2 == "cifA"|gene.position$gene_name2 == "cifB", ]
 
-## Load sample names without filter
-#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
-vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
-vcf <- vcfR::read.vcfR(vcf_path)
+cifAB_seq <- DNAStringSet(
+  lapply(seq_len(nrow(cifAB_data)), extract_cif_genes, gene=cifAB_data, ref=ref_seq))
 
-#gt <- extract.gt(vcf, element = "GT", as.numeric = FALSE)
-#dp <- extract.gt(vcf, element = "DP", as.numeric = TRUE)
-#gq <- extract.gt(vcf, element = "GQ", as.numeric = TRUE)
-#gt[dp < 10 | gq < 30] <- NA
-#vcf@gt[, -1] <- gt
-#good <- dp >= 10 & gq >= 30
-#site_fraction <- rowMeans(good, na.rm = TRUE)
-#vcf <- vcf[site_fraction >= 0.5, ]
+## Name of the sequences
+names(cifAB_seq) <- cifAB_data$gene
 
-## Select Samples
-samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
-vcf9 <- vcf[, c("FORMAT", samples)]
-colnames(vcf9@gt)
-
-## Get reference and alternative alleles
-fix <- getFIX(vcf9)
-## Dataframe with positions, reference and alternative alleles
-vcf_pos <- data.frame(
-  row = seq_len(nrow(fix)),
-  contig = fix[, "CHROM"],
-  pos = as.numeric(fix[, "POS"]),
-  ref = fix[, "REF"],
-  alt = fix[, "ALT"]
+writeXStringSet(
+  cifAB_seq,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wSuz_typeI&II_cifAB.fasta"
+  )
 )
-
-## Extract polymorphic position in cifA or B
-cifAB_sites <- do.call(
-  rbind,
-  lapply(seq_len(nrow(cifAB_data)), function(i) {
-    
-    region <- cifAB_data[i, ]
-    vcf_pos[
-      vcf_pos$contig == region$contig ,
-    ]
-    vcf_pos[
-      vcf_pos$contig == region$contig &
-      vcf_pos$pos >= region$start &
-      vcf_pos$pos <= region$end,
-    ]
-  })
-)
-
-## Get name of the gene
-cifAB_sites$gene <- sapply(
-  cifAB_sites$row,
-  function(x) {
-    cifAB_data$gene[
-      which(
-        vcf_pos$contig[x] == cifAB_data$contig &
-        vcf_pos$pos[x] >= cifAB_data$start &
-        vcf_pos$pos[x] <= cifAB_data$end
-      )[1]
-    ]
-  }
-)
-
-## Get the start position of the polymorphic site
-cifAB_sites$gene_start <- sapply(
-  cifAB_sites$row,
-  function(x) {
-    cifAB_data$start[
-      which(
-        vcf_pos$contig[x] == cifAB_data$contig &
-        vcf_pos$pos[x] >= cifAB_data$start &
-        vcf_pos$pos[x] <= cifAB_data$end
-      )[1]
-    ]
-  }
-)
-
-## Only one polymorphic SNP in position 1990 of Type II cifB
-head(cifAB_sites)
-nrow(cifAB_sites)
-table(cifAB_sites$gene)
-
-## Extract genotypes at the selected site
-gt <- extract.gt(vcf9, element = "GT")
-gt_cifAB <- gt[cifAB_sites$row, , drop = FALSE]
-gt_cifAB
-
 
 ```
 
-# Load and prepare data
-## Load data
+## Load cif data
 ```{r, eval=TRUE}
 
-## Load sample names without filter
-#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
-vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
+data <- readxl::read_excel(file.path(here::here(), "data", "genomic_data", "cif_data", "Table S2_Cif homologs summary.xlsx"), sheet = "Table S2", skip=1)
+data
+data |>
+    dplyr::filter(`Wolbachia strain`=="wSuz")|>
+  dplyr::select("cifA...15", "cifB...16")
 
-## Read data
-wSuz.pooldata <- poolfstat::vcf2pooldata(vcf.file=vcf_path, poolsizes = NA, poolnames = NA, min.maf=0.01, min.cov.per.pool=-1)
+## Extract rows for wRi and wMel
+cifAB_wRI_wMel <- data |>
+  dplyr::filter(`Wolbachia strain` %in% c("wRi", "wMel", "wSpc", "wPipPel")) |>
+  dplyr::mutate(
+    strain = `Wolbachia strain`
+  ) |>
+  dplyr::group_by(strain, Type) |>
+  dplyr::mutate(
+    copy = dplyr::row_number()
+  ) |>
+  dplyr::ungroup()
 
-## SNP infos
-head(wSuz.pooldata@snp.info)
+## Export cif A and cif B
+seqs <- cifAB_wRI_wMel |>
+  dplyr::pull(`cifA...15`) |>
+  gsub(pattern = "\\s+", replacement = "")
 
-## 610 SNPs
-wSuz.pooldata@nsnp
+seqs <- DNAStringSet(seqs)
 
-## 41 samples
-wSuz.pooldata@poolnames
-
-## Matrix for coverage and readcounts with SNPs in rows and samples in columns
-head(wSuz.pooldata@readcoverage[, 1:20])
-
-head(wSuz.pooldata@refallele.readcount[, 1:20])
-
-## Check coverage of wSpc
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
-
-## Check coverage of wRI
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("sim", wSuz.pooldata@poolnames)]))
-
-```
-
-## Select samples
-```{r, eval=TRUE}
-#samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1" )
-samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
-
-## Filter individuals
-wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(wSuz.pooldata@poolnames%in% samples))
-
-## Export genotypes
-geno_data <- round(wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage, 2)
-colnames(geno_data) <- wSuz.pooldata@poolnames
-
-## Add positions
-geno_data <- data.frame(wSuz.pooldata@snp.info, geno_data)
-
-head(geno_data, n=50)
-## Only one polymorphic SNP in position 1990 of Type II cifB
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position==783699,]
-
-## No polymorphic SNP in Type I cifB (polymorphism at position c(6495,6606,6859)-3609+1)
-geno_data[geno_data$Chromosome=="wSuz_2"&geno_data$Position>=3609 &geno_data$Position<=7131,]
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=691 &geno_data$Position<=4213,]
-geno_data[geno_data$Chromosome=="wSuz_1"&geno_data$Position>=823038 &geno_data$Position<=826560,]
-	
-#write.table(x=geno_data, file=here::here("data/derived_data/wol_genotypes.csv"), sep=";", row.names=FALSE, quote = FALSE, col.names = TRUE)
-```
-
-## Filter SNPs
-```{r}
-
-## 0 individual samples with fewer than 85% of the SNPs covered
-ind.callrate <- apply(wSuz.pooldata@readcoverage, 2, function(x) sum(x != 0)/nrow(wSuz.pooldata@readcoverage))
-sum(ind.callrate<=0.9)
-
-## Filter 0 individual samples with fewer than 90% of the SNPs covered
-#wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(ind.callrate>0.9))
-
-## 46 SNPs with fewer than 90% of individual samples covered
-snp.callrate <- apply(wSuz.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wSuz.pooldata@readcoverage))
-sum(snp.callrate<=0.9)
-
-## Filter 36 SNPs with fewer than 90% of individual samples covered
-wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
-```
-
-# Check MAF across samples
-As expected from the presence of a single Wolbachia genotype, the MAF boxplot on the called SNPs shows a reduced genetic diversity (@fig-wSuzmaf). Still, some polymorphism is found at some SNPs in Bal, Trento and Par6, but less in Ren000 and IT_Tre_Om300 (this may also be related to structural variation among these strains ?)
-```{r, eval=FALSE}
-#| echo: false
-#| fig-height: 8
-#| fig-width: 8 
-#| fig-cap: "Distribution of the MAF of called wRI sites on all the samples ."
-#| fig-cap-location: bottom
-#| label: fig-wSuzmaf
-
-wSuz.maf <- 0.5-abs(0.5-wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage)
-colnames(wSuz.maf) <- wSuz.pooldata@poolnames
-mean.maf <- rowMeans(wSuz.maf)
-pairs(wSuz.maf)
-pairs(wSuz.maf[mean.maf<0.05,])
-boxplot(wSuz.maf,horizontal=T,las=1,xlab="MAF")
-
-## Add positions
-maf_data <- data.frame(wSuz.pooldata@snp.info, wSuz.maf)
-
-maf_data <- maf_data |>
-  tidyr::pivot_longer(
-  cols = CN.Kun_KM2:ZB_wRI_Dsim1,
-  names_to = c("strain"),
-  values_to = "maf"
-  )
-
-maf_data |>
- # dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
-  dplyr::group_by(strain) |>
-  dplyr::summarise(
-    n = sum(!is.na(maf)),
-    mean_coverage = mean(maf))
-
-p <- maf_data |>
-ggplot(aes(x = maf, fill=Chromosome))+
-  geom_histogram()+
-  facet_wrap(vars(strain))
-p
-
-maf_data |>
-  dplyr::filter(maf>0.3)
-```
-
-
-# Plot tree
-## Tree based on divergence 
-```{r tree}
-fstats <- poolfstat::compute.fstats(x=wSuz.pooldata, output.pairwise.div = TRUE, verbose = TRUE, computeF3 = FALSE, computeF4 = FALSE)
-
-## Neighbor joining distance
-tt <- ape::nj(as.dist(fstats@pairwise.div))
-plot(tt)
-
-bootstrap_nj <- function(x) {
-  
-  # Number of SNPs
-  n <- x@nsnp
-  
-  # Resample SNPs WITH replacement
-  idx <- sample(seq_len(n), size = n, replace = TRUE)
-  
-  # Create bootstrap pooldata object
-  x_boot <- new(
-    "pooldata",
-    refallele.readcount = x@refallele.readcount[idx, , drop = FALSE],
-    readcoverage       = x@readcoverage[idx, , drop = FALSE],
-    snp.info           = x@snp.info[idx, , drop = FALSE],
-    poolsizes          = x@poolsizes,
-    poolnames          = x@poolnames,
-    npools              = x@npools,
-    nsnp                = n
-  )
-  
-  # Recalculate pairwise divergence
-  fs_boot <- poolfstat::compute.fstats(
-    x = x_boot,
-    output.pairwise.div = TRUE,
-    output.pairwise.fst = FALSE,
-    computeF3 = FALSE,
-    computeF4 = FALSE,
-    verbose = FALSE
-  )
-  
-  # NJ tree
-  ape::nj(as.dist(fs_boot@pairwise.div))
-}
-
-
-set.seed(123)
-
-nboot <- 100
-
-boot_trees <- vector("list", nboot)
-
-for (i in seq_len(nboot)) {
-  
-  if (i %% 100 == 0)
-    message("Bootstrap ", i, "/", nboot)
-  
-  boot_trees[[i]] <- bootstrap_nj(wSuz.pooldata)
-}
-
-class(boot_trees) <- "multiPhylo"
-
-boot_support <- ape::prop.clades(
-  tt,
-  boot_trees,
-  rooted = FALSE
+names(seqs) <- paste0(
+  cifAB_wRI_wMel$strain, "_Type",cifAB_wRI_wMel$Type,
+  "_cifA_",
+  cifAB_wRI_wMel$copy
 )
 
-boot_support
-## As percentage
-boot_support <- 100 * boot_support / nboot
+writeXStringSet(
+  seqs,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifA.fasta"
+  )
+)
 
-tt$node.label <- round(boot_support, 1)
+
+## Export Cif B
+seqs <- cifAB_wRI_wMel |>
+  dplyr::pull(`cifB...16`) |>
+  gsub(pattern = "\\s+", replacement = "")
+
+seqs <- DNAStringSet(seqs)
+
+names(seqs) <- paste0(
+  cifAB_wRI_wMel$strain, "_Type",cifAB_wRI_wMel$Type,
+  "_cifB_",
+  cifAB_wRI_wMel$copy
+)
+
+writeXStringSet(
+  seqs,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifB.fasta"
+  )
+)
+
+```
+
+## Step 1: Prepare sequences for alignment
+```{r, eval=TRUE}
+#dir.create(file.path(
+#    here::here(),
+#    "data", "genomic_data", "fasta_for_tree"))
+# Load FASTA files
+wSuz <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wSuz_typeI&II_cifAB.fasta"
+  ))
+
+wRi_wMel_cifA  <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifA.fasta"
+  ))
+wRi_wMel_cifB  <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifB.fasta"
+  ))
+
+# Use only Type I cifA
+#wSuz <- wSuz[grepl("TypeI_cifA", names(wSuz), ignore.case = TRUE)]
+#wRi_wMel <- wRi_wMel[grepl("TypeI_cifA", names(wRi_wMel), ignore.case = TRUE)]
+#wSuz <- wSuz[grepl("cifA", names(wSuz), ignore.case = TRUE)&!grepl("TypeII_cifA_1", names(wSuz), ignore.case = TRUE)]
+#names(wSuz) <- paste("wSuz", names(wSuz), sep="_")
+
+# Use only cifA
+wSuz_cifA <- wSuz[grepl("cifA", names(wSuz))&!grepl("TypeII_cifA_1", names(wSuz))]
+names(wSuz_cifA) <- paste("wSuz", names(wSuz_cifA), sep="_")
+wSuz_cifB <- wSuz[grepl("cifB", names(wSuz))]
+names(wSuz_cifB) <- paste("wSuz", names(wSuz_cifB), sep="_")
+
+# Combine sequences
+seqs_cifA <- c(wSuz_cifA[grepl("TypeI_", names(wSuz_cifA))], wRi_wMel_cifA, wSuz_cifA[grepl("TypeII_", names(wSuz_cifA))])
+seqs_cifB <- c(wSuz_cifB[grepl("TypeI", names(wSuz_cifB))], wRi_wMel_cifB[grepl("TypeII", names(wSuz_cifB))])
+
+names(seqs_cifA)
+names(seqs_cifB)
+# Devide by three
+width(seqs_cifA) %% 3
+width(seqs_cifB) %% 3
+
+## Translate into protein
+prot_cifA <- translate(seqs_cifA)
+prot_cifB <- translate(seqs_cifB)
+
+
+writeXStringSet(
+  prot_cifA,
+  file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+)
+writeXStringSet(
+  prot_cifB,
+  file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+)
+
+
+
+```
+
+
+## Step 2: Align, step 3: clean sequences and step 4: concatenate
+```{r, eval=TRUE}
+## Step 2: Align
+## Input and output fasta file
+in_cifA <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+in_cifB <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+
+out_cifA.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "align_prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+out_cifB.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "align_prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+
+## Perform alignement using mafft
+system(
+paste(
+    "/usr/local/bin/mafft --auto",
+    shQuote(in_cifA),
+    ">",
+    shQuote(out_cifA.fas)
+  )
+)
+
+## Perform alignement using mafft
+system(
+paste(
+    "/usr/local/bin/mafft --auto",
+    shQuote(in_cifB),
+    ">",
+    shQuote(out_cifB.fas)
+  )
+)
+
+## Step 3: clean sequences 
+clean_align_cifA <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "clean_align_prot_wSuz_wRI_wMel_cifA.fasta"
+)
+clean_align_cifB <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "clean_align_prot_wSuz_wRI_wMel_cifB.fasta"
+)
+system2(
+  "/opt/miniconda3/bin/clipkit",
+  args = c(
+    shQuote(out_cifA.fas),
+    "-o", shQuote(clean_align_cifA)
+  )
+)
+system2(
+  "/opt/miniconda3/bin/clipkit",
+  args = c(
+    shQuote(out_cifB.fas),
+    "-o", shQuote(clean_align_cifB)
+  )
+)
+
+## Step 4: concatenate cifA and cifB sequences
+
+# Load FASTA files
+prot_cifA <- readAAStringSet(clean_align_cifA)
+prot_cifB <- readAAStringSet(clean_align_cifB)
+
+
+fasta.seqlengths(filepath=clean_align_cifA,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+fasta.seqlengths(filepath=clean_align_cifB,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+## Concatenate corresponding CifA + CifB proteins
+prot_cifAB <- AAStringSet(
+  paste0(
+    as.character(prot_cifA),
+    as.character(prot_cifB)
+  )
+)
+
+## Keep the names
+names(prot_cifAB) <- gsub("cifA", "cifAB", names(prot_cifA))
+
+## Export contactenated sequences
+output.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "clean_align_prot_wSuz_wRI_wMel_cifAB.fasta"
+  )
+writeXStringSet(
+  prot_cifAB,
+  output.fas
+)
+
+fasta.seqlengths(filepath=output.fas,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+
+## Check alignement
+
+cifA <- readAAStringSet(
+  out_cifA.fas
+)
+
+cifB <- readAAStringSet(
+  out_cifB.fas
+)
+
+p1 <- ggmsa(
+  cifA,
+  start = 300,
+  #end = 200,
+ end = width(cifA)[1],
+  seq_name = TRUE,
+  char_width = 0.7,
+  color = "Clustal"
+)+
+  theme(
+    axis.text.x = element_text(size = 4.5),
+    axis.text.y = element_text(size = 2.5),
+    axis.ticks.y = element_blank()
+  )
+
+
+p2 <-ggmsa(
+  cifB,
+  start = 300,
+  end = 500,
+ # end = width(cifB)[1],
+  seq_name = TRUE,
+  char_width = 0.7,
+  color = "Clustal"
+)+
+  theme(
+    axis.text.x = element_text(size = 4.5),
+    axis.text.y = element_text(size = 2.5),
+    axis.ticks.y = element_blank()
+  )
+
+p1/p2
+ggsave(file.path(here::here(), "plots", "Fig.SX_Aligment_CifAB.pdf"), width = 20, height = 10, units = "cm")
+
+
+```
+
+## Step5: Make tree
+```{r, eval=TRUE}
+
+outdir <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "iqtree"
+)
+
+## Call IDtree
+#use ModelFinder (-m MFP) to select the substitution model;
+#infer the maximum-likelihood tree;
+#calculate 1,000 ultrafast bootstrap replicates (-bb 1000);
+#calculate 1,000 SH-aLRT replicates (-alrt 1000);
+# use 1 available CPU threads.
+
+system2(
+  "/opt/homebrew/bin/iqtree3",
+  args = c(
+    "-s", shQuote(output.fas),
+    "-m", "MFP",
+    "-bb", "1000",
+    "-alrt", "1000",
+    "-nt", "1",
+    "-redo",
+    "-pre", shQuote(file.path(outdir, "cifAB"))
+  )
+)
+
+## Load tree
+tree <- read.tree(
+  file.path(outdir, "cifAB.treefile")
+)
+tree$tip.label
 
 ## Reroot tree
-tree_rooted <- ape::root(
-  tt,
-  outgroup = c("US-CA_wRI_Dsim2", "ZB_wRI_Dsim1"),
+tree_rooted <- root(
+  tree,
+  outgroup = "wPipPel_TypeIV_cifAB_1",
   resolve.root = TRUE
 )
-
-plot(
-  tree_rooted,
-  show.node.label = TRUE,
-  cex = 0.7
-)
-
 
 library(ggtree)
 
 p <- ggtree(tree_rooted, layout = "rectangular") +
-  geom_tiplab(size = 3)+
+  geom_tiplab(size = 3) +
   geom_text2(
     aes(
       subset = !isTip,
-      label = label
+      label = sub(".*/", "", label),
+      #label = label
     ),
     size = 3,
     hjust = 0,
-    nudge_x = 0,
+    nudge_x = -0.08,
     nudge_y = 0.15
   )
+p 
+
+
+## Chenge position of bootstrap
+p <- ggtree(
+  tree_rooted,
+  layout = "rectangular"
+) +
+  # All bootstrap values except nodes 18 and 22
+  geom_text2(
+    aes(
+      subset = !isTip & node !=22,
+      label = sub("/.*", "", label)
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = -0.04,
+    nudge_y = 0.15
+  ) +
+
+  # Node 22: move down
+  geom_text2(
+    aes(
+      subset = !isTip & node == 22,
+      label = sub("/.*", "", label)
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = -0.04,
+    nudge_y = -0.3
+  ) +
+  geom_tiplab(size = 2.5)
+
 p
+ggsave(file.path(here::here(), "plots", "Fig.4C_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
 
-ggsave(file.path(here::here(), "plots", "Fig.4A_Wol_phylogeny.pdf"), width = 30, height = 10, units = "cm")
+
+ggtree(tree_rooted)$data|>
+print(n = 23)
+
+p +
+  # Type I (node 19)
+  geom_rect(
+    xmin = 0.75,
+    xmax = 1.2,
+    ymin = 4.5,
+    ymax = 12.5,
+    fill = "#FF339C",
+    alpha = 0.02,
+    colour = NA
+  ) +
+  
+  # Type II
+  geom_rect(
+    xmin = 0.3,
+    xmax = 1.1,
+    ymin = 1.5,
+    ymax = 4.5,
+    fill = "#EF7C3A",
+    alpha = 0.02,
+    colour = NA
+  )+
+   # Type IV
+  geom_rect(
+  xmin = 1.1,
+  xmax = 1.4,
+  ymin = 0.5,
+  ymax = 1.5,
+  fill = "#90D254",
+  alpha = 0.02,
+  colour = NA
+)
+
+
+
+#rm(data/genomic_data/fasta_for_tree)
 ```
-
-
-## PCA plot 
-```{r pca}
-#| echo: false
-#| fig-height: 16 
-#| fig-width: 24 
-#| fig-cap: "Random allele PCA of Wolbachia SNPs on all the 8 samples."
-#| fig-cap-location: bottom
-#| label: fig-wRIpca
-
-## Filter out bad SNPs
-#wRI.pooldata.filtered <- poolfstat::pooldata.subset(pooldata=wRI.pooldata,  snp.index = which(meanIso < 0.05))
-
-wSuz.pca=randomallele.pca(wSuz.pooldata, plot.pcs = NULL)
-
-## For the graph
-pch.type =rep(16, wSuz.pooldata@npools)
-pch.col  = rep(5, wSuz.pooldata@npools)
-pch.col[which(grepl("sub",wSuz.pooldata@poolnames) | grepl("CN-Kun",wSuz.pooldata@poolnames))]=8
-pch.col[which(grepl("sim",wSuz.pooldata@poolnames))]=7
-
-scree_data <- data.frame(PC = factor(paste0("PC", 1:length(wSuz.pca$perc.var)),levels = paste0("PC", 1:length(wSuz.pca$perc.var))),Variance = wSuz.pca$perc.var)
-
-# Plot the scree plot
-tmp1 <- ggplot(scree_data, aes(x = PC, y = Variance)) +
-  geom_bar(stat = "identity", fill = "steelblue") +  # Bar plot for explained variance
-  geom_point(size = 2) +  # Add points to show individual PC values
-  geom_line(group = 1, color = "black") +  # Line connecting the points
-  theme_minimal() +
-  labs(title = "Scree Plot", x = "Principal Component", y = "Percentage of Explained Variance") +
-  ylim(0, max(wSuz.pca$perc.var))
-
-data=as.data.frame(wSuz.pca$pop.loadings)
-colnames(data)=paste0("PC",1:ncol(data))
-data$sample=wSuz.pooldata@poolnames
-data$strain=paste0("G",pch.col)
-data$strain[pch.col==8]="wSpc" ; data$strain[pch.col==7]="wRI" ; data$strain[pch.col==5]="wSuz" 
-
-# Plot using ggplot and ggrepel to avoid overlapping labels
-tmp2<-ggplot(data, aes(x = PC1, y = PC2, label = sample, color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC2 (",round(wSuz.pca$perc.var[2],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-tmp3<-ggplot(data, aes(x = PC1, y = PC3, label = sample, color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC3 (",round(wSuz.pca$perc.var[3],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=strain)) +
-  geom_point(size=1) +  # Plot points for each sample
-  geom_text_repel(max.overlaps = Inf, show.legend = FALSE) +  # Add sample names without overlapping
-  theme_minimal() + 
-  labs(x = paste0("PC1 (",round(wSuz.pca$perc.var[1],2),"%)"), 
-       y = paste0("PC4 (",round(wSuz.pca$perc.var[4],2),"%)"), title = "") +
-  scale_color_manual(values = c(5,7,8)) 
-
-## Export graphs
-(tmp1 | tmp2 ) /
-      (tmp3 | tmp4)
-ggsave(file.path(here::here(), "plots", "Fig.SX_PCA.pdf"), width = 20, height = 20, units = "cm")
-
-rm(data)
-```
-
-## Clustering of variants
-```{r, eval=TRUE}
-
-
-## Export divergence
-fstats@pairwise.div
-
-## Hirarchical clustering equivalent to UPGMA
-tt <- hclust(as.dist(fstats@pairwise.div), method= "average")
-plot(tt)
-
-
-
-#quartz()
-## Heatmap
-heatmap(fstats@pairwise.div, distfun = as.dist)
-
-## With ComplexHeatmap
-div.hm <- ComplexHeatmap::Heatmap(fstats@pairwise.div,
-cluster_rows =TRUE,cluster_columns=TRUE,name="Divergence",
-show_heatmap_legend=FALSE,column_title = "Divergence (1-Q2)")
-
-div.hm
-
-```
-
-

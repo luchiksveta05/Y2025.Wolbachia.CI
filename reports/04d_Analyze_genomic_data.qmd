@@ -1,5 +1,5 @@
 ---
-title: "04ad_Analyze genomic data"
+title: "04d_Analyze genomic data"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -45,8 +45,200 @@ samtools view -bh -F 0x100 -O BAM $ii.dedup.bam wSuz_1 wSuz_2 wSuz_3 wSuz_4 > $i
 done
 ```
 
-and plotted per consecutive windows of 1 kb for all samples
+# Normalized coverage depth at cif genes
+## Coverage per wSuz position
+```{r, eval=TRUE}
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
 
+## Name of the four contigs
+contig <- c("wSuz_1", "wSuz_2", "wSuz_3", "wSuz_4")
+
+#for(s in c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
+s="Col-FR-Bal001"
+tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
+colnames(tmp) <- c("contig", "position", "Col-FR-Bal001")
+tmp <- tmp[tmp$contig %in% contig, ]
+
+tmp <- tmp |>
+  dplyr::mutate(
+    gene = sapply(seq_len(nrow(tmp)), function(i) {
+      
+      hit <- gene.position$gene[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+      
+      if (length(hit) > 0) {
+        hit
+      } else {
+        NA
+      }
+    })
+  )|>
+  dplyr::mutate(
+    gene_relative_position = sapply(seq_len(nrow(tmp)), function(i) {
+      
+      start <- gene.position$start[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+      
+      
+      if (length(start) > 0) {
+        if(gene.position$strand[gene.position$start==start]=="+"){
+          tmp$position[i]-start+1
+        }else{
+          end <- gene.position$end[
+        gene.position$contig == tmp$contig[i] &
+        tmp$position[i] >= gene.position$start &
+        tmp$position[i] <= gene.position$end
+      ]
+          end-tmp$position[i]+1
+        }
+        
+      } else {
+        NA
+      }
+    })
+  )
+
+## Correct relative position for the 5' part of TypeII_cifA
+tmp <- tmp|>
+  dplyr::mutate(gene_relative_position=dplyr::if_else(grepl("TypeII_cifA", gene)&position>=780652, gene_relative_position+322, gene_relative_position))
+
+## Add the type of genes
+tmp <- tmp|>
+  dplyr::left_join(y=gene.position[, c("gene", "type")], by="gene") |>
+  dplyr::relocate('Col-FR-Bal001', .after = dplyr::last_col())
+
+## Add the coverage of the otehr strains
+for(s in c("Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
+  #s="Col-FR-Ren000"
+  tmp2=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
+ tmp <- tmp|>
+  dplyr::mutate("{s}":=tmp2$V3)
+ 
+  }
+
+## Check the length of each gene copy
+tmp|>
+  dplyr::filter(!is.na(gene))|>
+  dplyr::group_by(gene)|>
+  dplyr::summarise(length=max(gene_relative_position))
+
+## Compute the length of each gene
+gene_length <- tmp |>
+  dplyr::mutate(gene=gsub("_3|_2|_1","", gene))|>
+  dplyr::group_by(gene) |>
+  dplyr::summarise(length=max(gene_relative_position))
+
+write.table(tmp, file=gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
+  row.names = FALSE,
+  col.names = TRUE,
+  sep = "\t",
+  quote = FALSE)
+```
+
+
+## Plot for Fig. 4D
+### Load coverage data
+```{r, eval=TRUE}
+
+tmp <- tibble::as_tibble(read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
+  header = TRUE,
+  sep = "\t"))
+
+## Convert to long format
+tmp <- tmp |>
+  tidyr::pivot_longer(
+  cols = Col.FR.Bal001:Iso.FR.Par006,
+  names_to = c("strain"),
+  values_to = "coverage"
+  )
+
+## Mean coverage per strain and per contig
+contig_coverage <- tmp |>
+  dplyr::group_by(strain, contig)|>
+  dplyr::summarise(
+    contig_length = sum(!is.na(coverage)),
+    mean_contig_coverage = mean(coverage, na.rm = TRUE))|>
+   dplyr::mutate(strain_contig=paste(strain, contig, sep="_"))
+
+```
+
+
+### Coverage per gene
+```{r, eval=TRUE}
+
+## Compute the normalized coverage per position
+tmp <- tmp|>
+  dplyr::filter(!grepl("sr3", gene)&!is.na(gene)) |>
+  dplyr::mutate(gene=gsub("_3|_2|_1","", gene))|>
+  dplyr::mutate(strain_contig=paste(strain, contig, sep="_"))|>
+  dplyr::left_join(contig_coverage[,c("strain_contig", "mean_contig_coverage")], by ="strain_contig")|>
+  dplyr::mutate(normalized_coverage=coverage/mean_contig_coverage)|>
+  dplyr::mutate(gene = as.factor(gene))|>
+  dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))
+
+gene_position_coverage <- tmp |>
+  dplyr::group_by(strain, gene, gene_relative_position) |>
+  dplyr::summarise(
+    n = sum(!is.na(coverage)),
+    sum_position_coverage=sum(normalized_coverage, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+gene_coverage <- gene_position_coverage |>
+  dplyr::group_by(strain, gene) |>
+  dplyr::summarise(
+    n_position= dplyr::n(),
+    mean_normalized_coverage = mean(sum_position_coverage),
+    sd_normalized_coverage  = sd(sum_position_coverage, na.rm = TRUE),
+    #se = sd_normalized_coverage / sqrt(n_position),
+    #t_critical = qt(0.975, df = n_position - 1),
+    #ci_lower = mean_normalized_coverage - t_critical * se,
+    #ci_upper = mean_normalized_coverage + t_critical * se,
+    .groups = "drop")|>
+  dplyr::mutate(strain = as.factor(strain))
+
+## Rename strains
+gene_coverage <- gene_coverage |>
+  dplyr::mutate(
+    strain = dplyr::recode(
+      strain,
+      "Col.FR.Bal001"  = "Bal",
+      "Col.FR.Ren000"  = "Rennes",
+      "Col.IT.Tre000"  = "Trento",
+      "Iso.FR.Par006"  = "Par6",
+    )
+  )
+## Plot
+gene_coverage|>
+ggplot(aes(x = gene, y = mean_normalized_coverage, fill=gene)) +
+  geom_col()+
+  geom_errorbar(
+    aes(ymin = mean_normalized_coverage-sd_normalized_coverage, ymax = mean_normalized_coverage+sd_normalized_coverage),
+    width = 0.2
+  ) +
+  #scale_y_log10() +
+  #theme_classic() +
+  labs(
+    x = "Gene",
+    y = "Mean coverage per gene",
+    title = "Mean coverage"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )+
+  facet_wrap(~strain)
+
+ggsave(file.path(here::here(), "plots", "Fig.4D_Normalized_coverage.pdf"), width = 30, height = 10, units = "cm")
+
+```
+
+# Plot per consecutive windows of 1 kb for all strains
 ```{r wSuz coverage}
 det.sample <- read.table(file = file.path(here::here(), "data", "genomic_data", "ids.txt"), sep=" ", header=FALSE)
 
@@ -190,143 +382,4 @@ axis(
 )
   
 # }
-```
-
-# Coverage depth at cif genes
-## Number of copies of cif genes
-```{r, eval=TRUE}
-gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
-
-contig <- c("wSuz_1", "wSuz_2", "wSuz_3", "wSuz_4")
-
-#for(s in c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
-  s="Col-FR-Bal001"
-  tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
-  #tmp=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".dedup.bam.wSuz.depth.gz"))), header=FALSE)
-  colnames(tmp) <- c("contig", "position", "Col-FR-Bal001")
-  tmp <- tmp[tmp$contig %in% contig, ]
-
-tmp <- tmp |>
-  dplyr::mutate(
-    gene = sapply(seq_len(nrow(tmp)), function(i) {
-      
-      hit <- gene.position$gene[
-        gene.position$contig == tmp$contig[i] &
-        tmp$position[i] >= gene.position$start &
-        tmp$position[i] <= gene.position$end
-      ]
-      
-      if (length(hit) > 0) {
-        hit
-      } else {
-        NA
-      }
-    })
-  )|>
-  dplyr::mutate(
-    gene_relative_position = sapply(seq_len(nrow(tmp)), function(i) {
-      
-      start <- gene.position$start[
-        gene.position$contig == tmp$contig[i] &
-        tmp$position[i] >= gene.position$start &
-        tmp$position[i] <= gene.position$end
-      ]
-      
-      
-      if (length(start) > 0) {
-        if(gene.position$strand[gene.position$start==start]=="+"){
-          tmp$position[i]-start+1
-        }else{
-          end <- gene.position$end[
-        gene.position$contig == tmp$contig[i] &
-        tmp$position[i] >= gene.position$start &
-        tmp$position[i] <= gene.position$end
-      ]
-          end-tmp$position[i]+1
-        }
-        
-      } else {
-        NA
-      }
-    })
-  )
-
-tmp <- tmp|>
-  dplyr::left_join(y=gene.position[, c("gene", "type")], by="gene") |>
-  dplyr::relocate('Col-FR-Bal001', .after = dplyr::last_col())
-
-
-for(s in c("Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006")){
-  #s="Col-FR-Ren000"
-  tmp2=read.table(gzfile(file.path(here::here(), "data", "genomic_data", "bam_data" , paste0(s, ".wSuz.primary.depth.gz"))), header=FALSE)
- tmp <- tmp|>
-  dplyr::mutate("{s}":=tmp2$V3)
- 
-  }
-
-## Check the length of each gene copy
-tmp|>
-  dplyr::filter(!is.na(gene))|>
-  dplyr::group_by(gene)|>
-  dplyr::summarise(length=max(gene_relative_position))
-
-write.table(tmp, file=gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
-  row.names = FALSE,
-  col.names = TRUE,
-  sep = "\t",
-  quote = FALSE)
-```
-
-
-## Plot for Fig. 4D
-### Load coverage data
-```{r, eval=TRUE}
-
-tmp <- tibble::as_tibble(read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt.gz")),
-  header = TRUE,
-  sep = "\t"))
-
-tmp <- tmp |>
-  dplyr::filter(!is.na(gene)) |>
-  tidyr::pivot_longer(
-  cols = Col.FR.Bal001:Iso.FR.Par006,
-  names_to = c("strain"),
-  values_to = "coverage"
-  )
-```
-
-
-### By gene copy
-```{r, eval=TRUE}
-gene_coverage <- tmp |>
-  dplyr::filter(!grepl("sr3", gene)) |>
-  dplyr::mutate(gene = forcats::fct_relevel(gene, "wsp", after = 1))|>
-  dplyr::group_by(strain, type, gene) |>
-  dplyr::summarise(
-    n = sum(!is.na(coverage)),
-    mean_coverage = mean(coverage, na.rm = TRUE),
-    sd_coverage = sd(coverage, na.rm = TRUE),
-    se = sd_coverage / sqrt(n),
-    t_critical = qt(0.975, df = n - 1),
-    ci_lower = mean_coverage - t_critical * se,
-    ci_upper = mean_coverage + t_critical * se,
-    .groups = "drop"
-  )
-
-ggplot(gene_coverage, aes(x = gene, y = mean_coverage, fill=type)) +
-  geom_col() +
-  geom_errorbar(
-    aes(ymin = mean_coverage-sd_coverage, ymax = mean_coverage+sd_coverage),
-    width = 0.2
-  ) +
-  scale_y_log10() +
-  theme_classic() +
-  labs(
-    x = "Gene",
-    y = "Mean coverage per gene copy",
-    title = "Mean coverage"
-  ) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )+facet_wrap(~strain)
 ```

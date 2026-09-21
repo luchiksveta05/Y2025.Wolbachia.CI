@@ -1,5 +1,5 @@
 ---
-title: "04ad_Analyze genomic data"
+title: "04a_Analyze genomic data"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -52,7 +52,7 @@ cif <- merge(cif, contig_lengths[, c("Contig", "y")], by = "Contig", all.x = TRU
 
 ```
 
-## Create a Figure 1A
+## Create Figure 4A
 
 ```{r, eval=TRUE}
 
