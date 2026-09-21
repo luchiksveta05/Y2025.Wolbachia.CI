@@ -393,7 +393,7 @@ tree <- read.tree(
 )
 tree$tip.label
 
-## Rerot tree
+## Reroot tree
 tree_rooted <- root(
   tree,
   outgroup = "wPipPel_TypeIV_cifAB_1",

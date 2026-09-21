@@ -243,6 +243,110 @@ maf_data |>
 
 
 # Plot tree
+## Tree based on divergence 
+```{r tree}
+fstats <- poolfstat::compute.fstats(x=wSuz.pooldata, output.pairwise.div = TRUE, verbose = TRUE, computeF3 = FALSE, computeF4 = FALSE)
+
+## Neighbor joining distance
+tt <- ape::nj(as.dist(fstats@pairwise.div))
+plot(tt)
+
+bootstrap_nj <- function(x) {
+  
+  # Number of SNPs
+  n <- x@nsnp
+  
+  # Resample SNPs WITH replacement
+  idx <- sample(seq_len(n), size = n, replace = TRUE)
+  
+  # Create bootstrap pooldata object
+  x_boot <- new(
+    "pooldata",
+    refallele.readcount = x@refallele.readcount[idx, , drop = FALSE],
+    readcoverage       = x@readcoverage[idx, , drop = FALSE],
+    snp.info           = x@snp.info[idx, , drop = FALSE],
+    poolsizes          = x@poolsizes,
+    poolnames          = x@poolnames,
+    npools              = x@npools,
+    nsnp                = n
+  )
+  
+  # Recalculate pairwise divergence
+  fs_boot <- poolfstat::compute.fstats(
+    x = x_boot,
+    output.pairwise.div = TRUE,
+    output.pairwise.fst = FALSE,
+    computeF3 = FALSE,
+    computeF4 = FALSE,
+    verbose = FALSE
+  )
+  
+  # NJ tree
+  ape::nj(as.dist(fs_boot@pairwise.div))
+}
+
+
+set.seed(123)
+
+nboot <- 100
+
+boot_trees <- vector("list", nboot)
+
+for (i in seq_len(nboot)) {
+  
+  if (i %% 100 == 0)
+    message("Bootstrap ", i, "/", nboot)
+  
+  boot_trees[[i]] <- bootstrap_nj(wSuz.pooldata)
+}
+
+class(boot_trees) <- "multiPhylo"
+
+boot_support <- ape::prop.clades(
+  tt,
+  boot_trees,
+  rooted = FALSE
+)
+
+boot_support
+## As percentage
+boot_support <- 100 * boot_support / nboot
+
+tt$node.label <- round(boot_support, 1)
+
+## Reroot tree
+tree_rooted <- ape::root(
+  tt,
+  outgroup = c("US-CA_wRI_Dsim2", "ZB_wRI_Dsim1"),
+  resolve.root = TRUE
+)
+
+plot(
+  tree_rooted,
+  show.node.label = TRUE,
+  cex = 0.7
+)
+
+
+library(ggtree)
+
+p <- ggtree(tree_rooted, layout = "rectangular") +
+  geom_tiplab(size = 3)+
+  geom_text2(
+    aes(
+      subset = !isTip,
+      label = label
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = 0,
+    nudge_y = 0.15
+  )
+p
+
+ggsave(file.path(here::here(), "plots", "Fig.4A_Wol_phylogeny.pdf"), width = 30, height = 10, units = "cm")
+```
+
 
 ## PCA plot 
 ```{r pca}
@@ -316,7 +420,7 @@ rm(data)
 
 ## Clustering of variants
 ```{r, eval=TRUE}
-fstats <- poolfstat::compute.fstats(x=wSuz.pooldata, output.pairwise.div = TRUE, verbose = TRUE, computeF3 = FALSE, computeF4 = FALSE)
+
 
 ## Export divergence
 fstats@pairwise.div
@@ -325,9 +429,7 @@ fstats@pairwise.div
 tt <- hclust(as.dist(fstats@pairwise.div), method= "average")
 plot(tt)
 
-## Neighbor joining distance
-tt <- ape::nj(as.dist(fstats@pairwise.div))
-plot(tt)
+
 
 #quartz()
 ## Heatmap
