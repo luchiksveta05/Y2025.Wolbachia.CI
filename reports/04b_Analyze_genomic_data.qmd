@@ -1,0 +1,492 @@
+---
+title: "04_Analyze genomic data"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+library(ggplot2)
+library(poolfstat)
+library(zoo)
+library(ComplexHeatmap)
+library(patchwork)
+library(vcfR)
+library(ape)
+library(phangorn)
+library(Biostrings)
+library(ggmsa)
+```
+
+# Phylogeny of cif genes
+## Extract fasta for Cif A and B
+```{r, eval=TRUE}
+
+### Reference
+ref_seq <- readDNAStringSet(file.path(here::here(), "data", "genomic_data", "assembly_China", "wSuz_RW2025a.fasta"))
+# Check reference name and length
+names(ref_seq)
+width(ref_seq)
+
+## Positions
+gene.position <- read.table(file = file.path(here::here(), "data", "genomic_data", "wSuz_genes_BLAST_hits.txt"), sep="\t", header=TRUE)
+head(gene.position)
+cifAB_data <- gene.position[gene.position$gene_name2 == "cifA"|gene.position$gene_name2 == "cifB", ]
+
+cifAB_seq <- DNAStringSet(
+  lapply(seq_len(nrow(cifAB_data)), extract_cif_genes, gene=cifAB_data, ref=ref_seq))
+
+## Name of the sequences
+names(cifAB_seq) <- cifAB_data$gene
+
+writeXStringSet(
+  cifAB_seq,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wSuz_typeI&II_cifAB.fasta"
+  )
+)
+
+```
+
+## Load cif data
+```{r, eval=TRUE}
+
+data <- readxl::read_excel(file.path(here::here(), "data", "genomic_data", "cif_data", "Table S2_Cif homologs summary.xlsx"), sheet = "Table S2", skip=1)
+data
+data |>
+    dplyr::filter(`Wolbachia strain`=="wSuz")|>
+  dplyr::select("cifA...15", "cifB...16")
+
+## Extract rows for wRi and wMel
+cifAB_wRI_wMel <- data |>
+  dplyr::filter(`Wolbachia strain` %in% c("wRi", "wMel", "wSpc", "wPipPel")) |>
+  dplyr::mutate(
+    strain = `Wolbachia strain`
+  ) |>
+  dplyr::group_by(strain, Type) |>
+  dplyr::mutate(
+    copy = dplyr::row_number()
+  ) |>
+  dplyr::ungroup()
+
+## Export cif A and cif B
+seqs <- cifAB_wRI_wMel |>
+  dplyr::pull(`cifA...15`) |>
+  gsub(pattern = "\\s+", replacement = "")
+
+seqs <- DNAStringSet(seqs)
+
+names(seqs) <- paste0(
+  cifAB_wRI_wMel$strain, "_Type",cifAB_wRI_wMel$Type,
+  "_cifA_",
+  cifAB_wRI_wMel$copy
+)
+
+writeXStringSet(
+  seqs,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifA.fasta"
+  )
+)
+
+
+## Export Cif B
+seqs <- cifAB_wRI_wMel |>
+  dplyr::pull(`cifB...16`) |>
+  gsub(pattern = "\\s+", replacement = "")
+
+seqs <- DNAStringSet(seqs)
+
+names(seqs) <- paste0(
+  cifAB_wRI_wMel$strain, "_Type",cifAB_wRI_wMel$Type,
+  "_cifB_",
+  cifAB_wRI_wMel$copy
+)
+
+writeXStringSet(
+  seqs,
+  file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifB.fasta"
+  )
+)
+
+```
+
+## Step 1: Prepare sequences for alignment
+```{r, eval=TRUE}
+#dir.create(file.path(
+#    here::here(),
+#    "data", "genomic_data", "fasta_for_tree"))
+# Load FASTA files
+wSuz <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wSuz_typeI&II_cifAB.fasta"
+  ))
+
+wRi_wMel_cifA  <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifA.fasta"
+  ))
+wRi_wMel_cifB  <- readDNAStringSet(file.path(
+    here::here(),
+    "data", "genomic_data",
+    "wRI_wMel_cifB.fasta"
+  ))
+
+# Use only Type I cifA
+#wSuz <- wSuz[grepl("TypeI_cifA", names(wSuz), ignore.case = TRUE)]
+#wRi_wMel <- wRi_wMel[grepl("TypeI_cifA", names(wRi_wMel), ignore.case = TRUE)]
+#wSuz <- wSuz[grepl("cifA", names(wSuz), ignore.case = TRUE)&!grepl("TypeII_cifA_1", names(wSuz), ignore.case = TRUE)]
+#names(wSuz) <- paste("wSuz", names(wSuz), sep="_")
+
+# Use only cifA
+wSuz_cifA <- wSuz[grepl("cifA", names(wSuz))&!grepl("TypeII_cifA_1", names(wSuz))]
+names(wSuz_cifA) <- paste("wSuz", names(wSuz_cifA), sep="_")
+wSuz_cifB <- wSuz[grepl("cifB", names(wSuz))]
+names(wSuz_cifB) <- paste("wSuz", names(wSuz_cifB), sep="_")
+
+# Combine sequences
+seqs_cifA <- c(wSuz_cifA[grepl("TypeI_", names(wSuz_cifA))], wRi_wMel_cifA, wSuz_cifA[grepl("TypeII_", names(wSuz_cifA))])
+seqs_cifB <- c(wSuz_cifB[grepl("TypeI", names(wSuz_cifB))], wRi_wMel_cifB[grepl("TypeII", names(wSuz_cifB))])
+
+names(seqs_cifA)
+names(seqs_cifB)
+# Devide by three
+width(seqs_cifA) %% 3
+width(seqs_cifB) %% 3
+
+## Translate into protein
+prot_cifA <- translate(seqs_cifA)
+prot_cifB <- translate(seqs_cifB)
+
+
+writeXStringSet(
+  prot_cifA,
+  file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+)
+writeXStringSet(
+  prot_cifB,
+  file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+)
+
+
+
+```
+
+
+## Step 2: Align, step 3: clean sequences and step 4: concatenate
+```{r, eval=TRUE}
+## Step 2: Align
+## Input and output fasta file
+in_cifA <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+in_cifB <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+
+out_cifA.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "align_prot_wSuz_wRI_wMel_cifA.fasta"
+  )
+out_cifB.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "align_prot_wSuz_wRI_wMel_cifB.fasta"
+  )
+
+## Perform alignement using mafft
+system(
+paste(
+    "/usr/local/bin/mafft --auto",
+    shQuote(in_cifA),
+    ">",
+    shQuote(out_cifA.fas)
+  )
+)
+
+## Perform alignement using mafft
+system(
+paste(
+    "/usr/local/bin/mafft --auto",
+    shQuote(in_cifB),
+    ">",
+    shQuote(out_cifB.fas)
+  )
+)
+
+## Step 3: clean sequences 
+clean_align_cifA <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "clean_align_prot_wSuz_wRI_wMel_cifA.fasta"
+)
+clean_align_cifB <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "clean_align_prot_wSuz_wRI_wMel_cifB.fasta"
+)
+system2(
+  "/opt/miniconda3/bin/clipkit",
+  args = c(
+    shQuote(out_cifA.fas),
+    "-o", shQuote(clean_align_cifA)
+  )
+)
+system2(
+  "/opt/miniconda3/bin/clipkit",
+  args = c(
+    shQuote(out_cifB.fas),
+    "-o", shQuote(clean_align_cifB)
+  )
+)
+
+## Step 4: concatenate cifA and cifB sequences
+
+# Load FASTA files
+prot_cifA <- readAAStringSet(clean_align_cifA)
+prot_cifB <- readAAStringSet(clean_align_cifB)
+
+
+fasta.seqlengths(filepath=clean_align_cifA,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+fasta.seqlengths(filepath=clean_align_cifB,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+## Concatenate corresponding CifA + CifB proteins
+prot_cifAB <- AAStringSet(
+  paste0(
+    as.character(prot_cifA),
+    as.character(prot_cifB)
+  )
+)
+
+## Keep the names
+names(prot_cifAB) <- gsub("cifA", "cifAB", names(prot_cifA))
+
+## Export contactenated sequences
+output.fas <- file.path(
+    here::here(),
+    "data", "genomic_data", "fasta_for_tree",
+    "clean_align_prot_wSuz_wRI_wMel_cifAB.fasta"
+  )
+writeXStringSet(
+  prot_cifAB,
+  output.fas
+)
+
+fasta.seqlengths(filepath=output.fas,
+               nrec=-1L, skip=0L, seek.first.rec=FALSE,
+               seqtype="B", use.names=TRUE)
+
+
+## Check alignement
+
+cifA <- readAAStringSet(
+  out_cifA.fas
+)
+
+cifB <- readAAStringSet(
+  out_cifB.fas
+)
+
+p1 <- ggmsa(
+  cifA,
+  start = 300,
+  #end = 200,
+ end = width(cifA)[1],
+  seq_name = TRUE,
+  char_width = 0.7,
+  color = "Clustal"
+)+
+  theme(
+    axis.text.x = element_text(size = 4.5),
+    axis.text.y = element_text(size = 2.5),
+    axis.ticks.y = element_blank()
+  )
+
+
+p2 <-ggmsa(
+  cifB,
+  start = 300,
+  end = 500,
+ # end = width(cifB)[1],
+  seq_name = TRUE,
+  char_width = 0.7,
+  color = "Clustal"
+)+
+  theme(
+    axis.text.x = element_text(size = 4.5),
+    axis.text.y = element_text(size = 2.5),
+    axis.ticks.y = element_blank()
+  )
+
+p1/p2
+ggsave(file.path(here::here(), "plots", "Fig.SX_Aligment_CifAB.pdf"), width = 20, height = 10, units = "cm")
+
+
+```
+
+## Step5: Make tree
+```{r, eval=TRUE}
+
+outdir <- file.path(
+  here::here(),
+  "data", "genomic_data", "fasta_for_tree",
+  "iqtree"
+)
+
+## Call IDtree
+#use ModelFinder (-m MFP) to select the substitution model;
+#infer the maximum-likelihood tree;
+#calculate 1,000 ultrafast bootstrap replicates (-bb 1000);
+#calculate 1,000 SH-aLRT replicates (-alrt 1000);
+# use 1 available CPU threads.
+
+system2(
+  "/opt/homebrew/bin/iqtree3",
+  args = c(
+    "-s", shQuote(output.fas),
+    "-m", "MFP",
+    "-bb", "1000",
+    "-alrt", "1000",
+    "-nt", "1",
+    "-redo",
+    "-pre", shQuote(file.path(outdir, "cifAB"))
+  )
+)
+
+## Load tree
+tree <- read.tree(
+  file.path(outdir, "cifAB.treefile")
+)
+tree$tip.label
+
+## Reroot tree
+tree_rooted <- root(
+  tree,
+  outgroup = "wPipPel_TypeIV_cifAB_1",
+  resolve.root = TRUE
+)
+
+library(ggtree)
+
+p <- ggtree(tree_rooted, layout = "rectangular") +
+  geom_tiplab(size = 3) +
+  geom_text2(
+    aes(
+      subset = !isTip,
+      label = sub(".*/", "", label),
+      #label = label
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = -0.08,
+    nudge_y = 0.15
+  )
+p 
+
+
+## Chenge position of bootstrap
+p <- ggtree(
+  tree_rooted,
+  layout = "rectangular"
+) +
+  # All bootstrap values except nodes 18 and 22
+  geom_text2(
+    aes(
+      subset = !isTip & node !=22,
+      label = sub("/.*", "", label)
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = -0.04,
+    nudge_y = 0.15
+  ) +
+
+  # Node 22: move down
+  geom_text2(
+    aes(
+      subset = !isTip & node == 22,
+      label = sub("/.*", "", label)
+    ),
+    size = 3,
+    hjust = 0,
+    nudge_x = -0.04,
+    nudge_y = -0.3
+  ) +
+  geom_tiplab(size = 2.5)
+
+p
+
+ggtree(tree_rooted)$data|>
+print(n = 23)
+
+p +
+  # Type I (node 19)
+  geom_rect(
+    xmin = 0.75,
+    xmax = 1.2,
+    ymin = 4.5,
+    ymax = 12.5,
+    fill = "#FF339C",
+    alpha = 0.02,
+    colour = NA
+  ) +
+  
+  # Type II
+  geom_rect(
+    xmin = 0.3,
+    xmax = 1.1,
+    ymin = 1.5,
+    ymax = 4.5,
+    fill = "#EF7C3A",
+    alpha = 0.02,
+    colour = NA
+  )+
+   # Type IV
+  geom_rect(
+  xmin = 1.1,
+  xmax = 1.4,
+  ymin = 0.5,
+  ymax = 1.5,
+  fill = "#90D254",
+  alpha = 0.02,
+  colour = NA
+)
+
+ggsave(file.path(here::here(), "plots", "Fig.4C_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
+
+#rm(data/genomic_data/fasta_for_tree)
+```
