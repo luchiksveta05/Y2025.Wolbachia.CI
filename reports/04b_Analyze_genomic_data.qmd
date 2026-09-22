@@ -145,17 +145,19 @@ head(wSuz.pooldata@readcoverage[, 1:20])
 head(wSuz.pooldata@refallele.readcount[, 1:20])
 
 ## Check coverage of wSpc
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
+sort(colSums(wSuz.pooldata@readcoverage[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D-sub", wSuz.pooldata@poolnames)]))
 
 ## Check coverage of wRI
-sort(colSums(wSuz.pooldata@refallele.readcount[, grep("sim", wSuz.pooldata@poolnames)]))
+sort(colSums(wSuz.pooldata@readcoverage[, grep("sim", wSuz.pooldata@poolnames)]))
 
 ```
 
 ## Select samples
 ```{r, eval=TRUE}
-#samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1" )
-samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "CN-Kun_KM3", "CN-Kun_KM2" , "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
+samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "Ko-Nam_NW2", "CN-Kun_KM5" , "D-sub", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
+samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "Ko-Nam_NW2", "CN-Kun_KM5" , "D-sub", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
+
+#samples <- c("Col-FR-Bal001", "Col-FR-Ren000", "Col-IT-Tre000", "Iso-FR-Par006", "Ko-Nam_NW2", "CN-Kun_KM5" , "D-sub", "IT_Tre_Om300", "US-CA_wRI_Dsim2", "ZB_wRI_Dsim1")
 
 ## Filter individuals
 wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  pool.index = which(wSuz.pooldata@poolnames%in% samples))
