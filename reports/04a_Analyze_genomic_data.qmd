@@ -45,7 +45,6 @@ cif <- cif |> dplyr::mutate(Gene = dplyr::case_when(grepl("ISWpi7|ISWp7", Query)
 
 cif <- cif |> dplyr::arrange(Contig, Start)
 
-#Create Figure 1A
 ## Add position of each contig on Y
 contig_lengths$y <- rev(seq_len(nrow(contig_lengths)))
 cif <- merge(cif, contig_lengths[, c("Contig", "y")], by = "Contig", all.x = TRUE)
@@ -68,7 +67,7 @@ cif <- cif |> dplyr::mutate(start2 = start, end2 = end, start = ifelse(Strand ==
 
 typeI_loci <- cif |> dplyr::filter(Type == "Type I") |> dplyr::mutate(left = pmin(start, end), right = pmax(start, end)) |> dplyr::arrange(seq_id, left) |> dplyr::group_by(seq_id) |> dplyr::mutate(locus = cumsum(c(TRUE, left[-1] - right[-dplyr::n()] > 10000))) |> dplyr::group_by(seq_id, locus) |> dplyr::summarise(start = min(left), end = max(right), y = dplyr::first(y), Gene = paste(Gene, collapse = "-"), Strand = dplyr::first(Strand), .groups = "drop") |> dplyr::mutate(mid = (start + end) / 2, Name = "cifA–cifB", Type = "Type I", Query = "cifAB_TypeI")
 
-typeII_locus <- cif |> dplyr::filter(Type == "Type II") |> dplyr::mutate(len = abs(end - start) + 1) |> dplyr::filter(Gene == "cifB" | (Gene == "cifA" & len > 1000)) |> dplyr::summarise(seq_id = dplyr::first(seq_id), start = min(pmin(start, end)), end = max(pmax(start, end)), y = dplyr::first(y), Gene = paste(Gene, collapse = "-"), Strand = dplyr::first(Strand)) |> dplyr::mutate(mid = (start + end) / 2, Name = "cifA 3′–cifB", Type = "Type II", Query = "cifAB_TypeII")
+typeII_locus <- cif |> dplyr::filter(Type == "Type II") |> dplyr::mutate(len = abs(end - start) + 1) |> dplyr::filter(Gene == "cifB" | (Gene == "cifA" & len > 1000)) |> dplyr::summarise(seq_id = dplyr::first(seq_id), start = min(pmin(start, end)), end = max(pmax(start, end)), y = dplyr::first(y), Gene = paste(Gene, collapse = "-"), Strand = dplyr::first(Strand)) |> dplyr::mutate(mid = (start + end) / 2, Name = "cifA3′–cifB", Type = "Type II", Query = "cifAB_TypeII")
 
 cif_loci <- dplyr::bind_rows(typeI_loci, typeII_locus, cif |> dplyr::filter(Type == "Type II", Gene == "cifA", abs(end - start) + 1 < 1000) |> dplyr::mutate(mid = (start + end) / 2, Name = "cifA 5'"))
 
@@ -78,13 +77,13 @@ cif <- cif |> dplyr::mutate(mid = (start + end) / 2)
 
 cifA_plot <- cif_loci |> dplyr::filter(Name == "cifA Type II") |> dplyr::mutate(start = mid - 2500, end = mid + 2500)
 
-cif_loci_plot <- cif_loci |> dplyr::mutate(start = ifelse(Strand == "+", mid - 6000, mid + 6000), end = ifelse(Strand == "+", mid + 6000, mid - 6000))
+cif_loci_plot <- cif_loci |> dplyr::mutate(start = ifelse(Strand == "+", mid - 7000, mid + 7000), end = ifelse(Strand == "+", mid + 7000, mid - 7000))
 
-p <- gggenomes(seqs = contig_lengths, genes = cif_loci_plot) + geom_seq(linewidth = 1) + geom_gene(aes(fill = Type), colour = NA, size = 10) + geom_gene_tag(aes(label = Name, colour = Type), nudge_y = 0.20, size = 3, fontface = "italic") + geom_text(data = contig_lengths, aes(x = 0, y = y, label = seq_id), inherit.aes = FALSE, hjust = 1, vjust = 0.5, nudge_x = -20000, size = 4, fontface = "italic") + scale_fill_manual(values = c("Type I" = "#E69F00", "Type II" = "#D73027")) + scale_colour_manual(values = c("Type I" = "#E69F00", "Type II" = "#D73027"), guide = "none") + scale_x_continuous(breaks = seq(0, 800000, 100000), labels = function(x) x / 1000, expand = expansion(mult = c(0, 0.02))) + coord_cartesian(clip = "off") + labs(x = "Position (kb)", fill = NULL) + theme_classic(base_size = 10) + theme(axis.line.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank(), legend.position = "right", plot.margin = margin(10, 20, 10, 70))
+p <- gggenomes(seqs = contig_lengths, genes = cif_loci_plot) + geom_seq(linewidth = 1) + geom_gene(aes(fill = Type), colour = NA, size = 10) + geom_gene_tag(aes(label = Name, colour = Type), nudge_y = 0.2, angle = 30, size = 4, fontface = "italic") + geom_text(data = contig_lengths, aes(x = 0, y = y, label = seq_id), inherit.aes = FALSE, hjust = 1, vjust = 0.5, nudge_x = -20000, size = 4, fontface = "italic") + coord_cartesian(ylim = c(0.9, 4.5), clip = "off") + scale_fill_manual(values = c("Type I" = "#E83E8C", "Type II" = "#E89C50")) + scale_colour_manual(values = c("Type I" = "#FF339C", "Type II" = "#E89C50"), guide = "none") + scale_x_continuous(breaks = seq(0, 800000, 100000), labels = function(x) x / 1000, expand = expansion(mult = c(0, 0.10))) + coord_cartesian(clip = "off") + labs(x = "Position (kb)", fill = NULL) + theme_classic(base_size = 10) + theme(axis.line.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank(), axis.text.x = element_text(size = 12), axis.title.x = element_text(size = 12), legend.text = element_text(size = 12), legend.position = c(0.90, 0.50), plot.margin = margin(10, 10, 10, 40))
 
 p
 
-title_plot <- "Figure4A_wSuz_genome.pdf"
+title_plot <- "Fig.4A_wSuz_genome.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), p, base_height = 10/cm(1), base_width = 14/cm(1), dpi = 1200)
 
 ```

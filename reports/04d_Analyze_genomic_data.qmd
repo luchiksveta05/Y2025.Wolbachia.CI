@@ -150,6 +150,11 @@ tmp <- tibble::as_tibble(read.table(gzfile(file.path(here::here(), "data", "geno
   header = TRUE,
   sep = "\t"))
 
+# For Svitlana computer
+tmp <- tibble::as_tibble(read.table(gzfile(file.path(here::here(), "data", "genomic_data", "coverage.txt")),
+  header = TRUE,
+  sep = "\t"))
+
 ## Convert to long format
 tmp <- tmp |>
   tidyr::pivot_longer(
@@ -214,27 +219,34 @@ gene_coverage <- gene_coverage |>
       "Iso.FR.Par006"  = "Par6",
     )
   )
+
+#Add type of the gene to the database
+gene_coverage <- gene_coverage |> dplyr::mutate(gene_type = dplyr::case_when(gene %in% c("wsp", "FtsZ") ~ "One-copy gene", grepl("TypeII", gene) ~ "cif Type II", grepl("TypeI", gene) ~ "cif Type I", TRUE ~ NA_character_))
+
+gene_coverage <- gene_coverage |> dplyr::mutate(gene_type = dplyr::case_when(gene %in% c("wsp", "FtsZ") ~ "One-copy gene", grepl("TypeII", gene) ~ "cif Type II", grepl("TypeI", gene) ~ "cif Type I"), gene_type = factor(gene_type, levels = c("One-copy gene", "cif Type I", "cif Type II")))
+
 ## Plot
 gene_coverage|>
-ggplot(aes(x = gene, y = mean_normalized_coverage, fill=gene)) +
+ggplot(aes(x = gene, y = mean_normalized_coverage, fill=gene_type)) +
   geom_col()+
   geom_errorbar(
     aes(ymin = mean_normalized_coverage-sd_normalized_coverage, ymax = mean_normalized_coverage+sd_normalized_coverage),
     width = 0.2
   ) +
+  scale_fill_manual(values = c("One-copy gene" = "#7B6BA8", "cif Type I" = "#E83E8C", "cif Type II" = "#E89C50"), name = NULL) +
   #scale_y_log10() +
   #theme_classic() +
   labs(
     x = "Gene",
-    y = "Mean coverage per gene",
-    title = "Mean coverage"
+    y = "Mean normalized coverage per gene",
+    #title = "Mean coverage"
   ) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1)
   )+
   facet_wrap(~strain)
 
-ggsave(file.path(here::here(), "plots", "Fig.4D_Normalized_coverage.pdf"), width = 30, height = 10, units = "cm")
+ggsave(file.path(here::here(), "plots", "Fig.4D_Normalized_coverage.pdf"), width = 30, height = 15, units = "cm")
 
 ```
 
