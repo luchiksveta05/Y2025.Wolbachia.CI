@@ -55,6 +55,13 @@ writeXStringSet(
   )
 )
 
+
+## The two copies in WRI are identical
+cifAB_seq[["TypeI_cifA_1"]] ==
+cifAB_seq[["TypeI_cifA_2"]]
+cifAB_seq[["TypeI_cifA_1"]] ==
+cifAB_seq[["TypeI_cifA_3"]]
+
 ```
 
 ## Load cif data
@@ -91,6 +98,12 @@ names(seqs) <- paste0(
   cifAB_wRI_wMel$copy
 )
 
+
+## The two copies in WRI are identical
+seqs[["wRi_TypeI_cifA_1"]] ==
+seqs[["wRi_TypeI_cifA_2"]]
+
+
 writeXStringSet(
   seqs,
   file.path(
@@ -123,6 +136,9 @@ writeXStringSet(
   )
 )
 
+## The two copies in WRI are identical
+seqs[["wRi_TypeI_cifB_1"]] ==
+seqs[["wRi_TypeI_cifB_2"]]
 ```
 
 ## Step 1: Prepare sequences for alignment
@@ -136,6 +152,12 @@ wSuz <- Biostrings::readDNAStringSet(file.path(
     "data", "genomic_data",
     "wSuz_typeI&II_cifAB.fasta"
   ))
+
+## Trim the first two nucleotides of TypeII_cifA_2 so that the nucleotide sequence is in frame for translation
+wSuz["TypeII_cifA_2"] <- subseq(
+  wSuz["TypeII_cifA_2"],
+  start = 3
+)
 
 wRi_wMel_cifA  <- Biostrings::readDNAStringSet(file.path(
     here::here(),
@@ -162,10 +184,15 @@ names(wSuz_cifB) <- paste("wSuz", names(wSuz_cifB), sep="_")
 
 # Combine sequences
 seqs_cifA <- c(wSuz_cifA[grepl("TypeI_", names(wSuz_cifA))], wRi_wMel_cifA, wSuz_cifA[grepl("TypeII_", names(wSuz_cifA))])
-seqs_cifB <- c(wSuz_cifB[grepl("TypeI", names(wSuz_cifB))], wRi_wMel_cifB[grepl("TypeII", names(wSuz_cifB))])
+names(seqs_cifA)
+seqs_cifB <- c(wSuz_cifB[grepl("TypeI_", names(wSuz_cifB))], wRi_wMel_cifB, wSuz_cifB[grepl("TypeII_", names(wSuz_cifB))])
+
+names(seqs_cifA)[!grepl("wSuz_TypeI_|wRi_TypeI_", names(seqs_cifA))] <- gsub("_1|_2|_3", "", names(seqs_cifA)[!grepl("wSuz_TypeI_|wRi_TypeI_", names(seqs_cifA))] )
+names(seqs_cifB)[!grepl("wSuz_TypeI_|wRi_TypeI_", names(seqs_cifB))] <- gsub("_1|_2|_3", "", names(seqs_cifB)[!grepl("wSuz_TypeI_|wRi_TypeI_", names(seqs_cifB))] )
 
 names(seqs_cifA)
 names(seqs_cifB)
+
 # Devide by three
 Biostrings::width(seqs_cifA) %% 3
 Biostrings::width(seqs_cifB) %% 3
@@ -396,7 +423,7 @@ tree$tip.label
 ## Reroot tree
 tree_rooted <- root(
   tree,
-  outgroup = "wPipPel_TypeIV_cifAB_1",
+  outgroup = "wPipPel_TypeIV_cifAB",
   resolve.root = TRUE
 )
 
@@ -415,10 +442,10 @@ p <- ggtree(tree_rooted, layout = "rectangular") +
     nudge_x = -0.08,
     nudge_y = 0.15
   )
-p 
+p  + xlim(0, max(p$data$x) + 0.3)
 
 
-## Chenge position of bootstrap
+## Change position of bootstrap
 p <- ggtree(
   tree_rooted,
   layout = "rectangular"
@@ -448,7 +475,7 @@ p <- ggtree(
   ) +
   geom_tiplab(size = 2.5)
 
-p
+p + xlim(0, max(p$data$x) + 0.3)
 ggsave(file.path(here::here(), "plots", "Fig.4C_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
 
 
