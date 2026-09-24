@@ -131,18 +131,18 @@ writeXStringSet(
 #    here::here(),
 #    "data", "genomic_data", "fasta_for_tree"))
 # Load FASTA files
-wSuz <- readDNAStringSet(file.path(
+wSuz <- Biostrings::readDNAStringSet(file.path(
     here::here(),
     "data", "genomic_data",
     "wSuz_typeI&II_cifAB.fasta"
   ))
 
-wRi_wMel_cifA  <- readDNAStringSet(file.path(
+wRi_wMel_cifA  <- Biostrings::readDNAStringSet(file.path(
     here::here(),
     "data", "genomic_data",
     "wRI_wMel_cifA.fasta"
   ))
-wRi_wMel_cifB  <- readDNAStringSet(file.path(
+wRi_wMel_cifB  <- Biostrings::readDNAStringSet(file.path(
     here::here(),
     "data", "genomic_data",
     "wRI_wMel_cifB.fasta"
@@ -167,15 +167,15 @@ seqs_cifB <- c(wSuz_cifB[grepl("TypeI", names(wSuz_cifB))], wRi_wMel_cifB[grepl(
 names(seqs_cifA)
 names(seqs_cifB)
 # Devide by three
-width(seqs_cifA) %% 3
-width(seqs_cifB) %% 3
+Biostrings::width(seqs_cifA) %% 3
+Biostrings::width(seqs_cifB) %% 3
 
 ## Translate into protein
-prot_cifA <- translate(seqs_cifA)
-prot_cifB <- translate(seqs_cifB)
+prot_cifA <- Biostrings::translate(seqs_cifA)
+prot_cifB <- Biostrings::translate(seqs_cifB)
 
 
-writeXStringSet(
+Biostrings::writeXStringSet(
   prot_cifA,
   file.path(
     here::here(),
@@ -183,7 +183,7 @@ writeXStringSet(
     "prot_wSuz_wRI_wMel_cifA.fasta"
   )
 )
-writeXStringSet(
+Biostrings::writeXStringSet(
   prot_cifB,
   file.path(
     here::here(),
@@ -272,8 +272,8 @@ system2(
 ## Step 4: concatenate cifA and cifB sequences
 
 # Load FASTA files
-prot_cifA <- readAAStringSet(clean_align_cifA)
-prot_cifB <- readAAStringSet(clean_align_cifB)
+prot_cifA <- Biostrings::readAAStringSet(clean_align_cifA)
+prot_cifB <- Biostrings::readAAStringSet(clean_align_cifB)
 
 
 fasta.seqlengths(filepath=clean_align_cifA,
