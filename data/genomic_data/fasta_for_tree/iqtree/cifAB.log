@@ -1,0 +1,161 @@
+IQ-TREE single-core version 3.1.4 for MacOS ARM 64-bit built Sep 10 2026
+Developed by Bui Quang Minh, Thomas Wong, Nhan Ly-Trong, Huaiyan Ren
+Contributed by Lam-Tung Nguyen, Dominik Schrempf, Chris Bielow,
+Olga Chernomor, Michael Woodhams, Diep Thi Hoang, Heiko Schmidt
+
+Host:    cbgp-d-rodenico2.local (SSE4.2, 16 GB RAM)
+Command: /opt/homebrew/bin/iqtree3 -s /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/clean_align_prot_wSuz_wRI_wMel_cifAB.fasta -m MFP -bb 1000 -alrt 1000 -nt 1 -redo -pre /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB
+Seed:    650970 (Using SPRNG - Scalable Parallel Random Number Generator)
+Time:    Thu Sep 24 15:15:13 2026
+Kernel:  SSE2
+
+NOTE: Consider using the multicore version because your CPU has 8 cores!
+
+Reading alignment file /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/clean_align_prot_wSuz_wRI_wMel_cifAB.fasta ... Fasta format detected
+Reading fasta file: done in 0.000237942 secs using 84.47% CPU
+Alignment most likely contains protein sequences
+Constructing alignment: done in 0.00107694 secs using 62.03% CPU
+Alignment has 12 sequences with 1704 columns, 1004 distinct patterns
+645 parsimony-informative, 425 singleton sites, 634 constant sites
+                      Gap/Ambiguity  Composition  p-value
+Analyzing sequences: done in 3.50475e-05 secs using 62.77% CPU
+   1  wSuz_TypeI_cifAB_1      3.35%    passed     99.86%
+   2  wSuz_TypeI_cifAB_2      3.35%    passed     99.86%
+   3  wSuz_TypeI_cifAB_3      3.35%    passed     99.86%
+   4  wMel_TypeI_cifAB        3.35%    passed     99.86%
+   5  wPipPel_TypeI_cifAB     4.23%    passed     98.52%
+   6  wRi_TypeI_cifAB_1       3.40%    passed     99.95%
+   7  wRi_TypeI_cifAB_2       3.40%    passed     99.95%
+   8  wSpc_TypeI_cifAB        3.40%    passed     99.87%
+   9  wRi_TypeII_cifAB       30.58%    passed      6.25%
+  10  wSpc_TypeII_cifAB      36.33%    failed      3.30%
+  11  wPipPel_TypeIV_cifAB   34.27%    failed      0.00%
+  12  wSuz_TypeII_cifAB      36.91%    failed      3.50%
+****  TOTAL                  13.83%  3 sequences failed composition chi2 test (p-value<5%; df=19)
+NOTE: wSuz_TypeI_cifAB_2 is identical to wSuz_TypeI_cifAB_1 but kept for subsequent analysis
+NOTE: wRi_TypeI_cifAB_2 is identical to wRi_TypeI_cifAB_1 but kept for subsequent analysis
+Checking for duplicate sequences: done in 5.10216e-05 secs using 78.4% CPU
+Identifying sites to remove: done in 0.000466108 secs using 94.4% CPU
+NOTE: 1 identical sequences (see below) will be ignored for subsequent analysis
+NOTE: wSuz_TypeI_cifAB_3 (identical to wSuz_TypeI_cifAB_1) is ignored but added at the end
+Alignment was printed to /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.uniqueseq.phy
+
+For your convenience alignment with unique sequences printed to /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.uniqueseq.phy
+
+
+Create initial parsimony tree by phylogenetic likelihood library (PLL)... 0.001 seconds
+Perform fast likelihood tree search using LG+I+G model...
+Estimate model parameters (epsilon = 5.000)
+Perform nearest neighbor interchange...
+Estimate model parameters (epsilon = 1.000)
+1. Initial log-likelihood: -12002.837
+2. Current log-likelihood: -12000.936
+3. Current log-likelihood: -11999.550
+4. Current log-likelihood: -11998.523
+Optimal log-likelihood: -11997.731
+Proportion of invariable sites: 0.060
+Gamma shape alpha: 3.515
+Parameters optimization took 4 rounds (1.141 sec)
+Time for fast ML tree search: 2.725 seconds
+
+NOTE: ModelFinder requires 21 MB RAM!
+ModelFinder will test up to 1232 protein models (sample size: 1704 epsilon: 0.100) ...
+Akaike Information Criterion:           JTT+F+G4
+Corrected Akaike Information Criterion: JTT+F+G4
+Bayesian Information Criterion:         JTT+F+G4
+Best-fit model: JTT+F+G4 chosen according to BIC
+
+All model information printed to /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.model.gz
+CPU time for ModelFinder: 80.820 seconds (0h:1m:20s)
+Wall-clock time for ModelFinder: 80.953 seconds (0h:1m:20s)
+Generating 1000 samples for ultrafast bootstrap (seed: 650970)...
+
+NOTE: 10 MB RAM (0 GB) is required!
+Estimate model parameters (epsilon = 0.100)
+1. Initial log-likelihood: -11838.282
+2. Current log-likelihood: -11835.154
+3. Current log-likelihood: -11834.362
+Optimal log-likelihood: -11834.265
+Gamma shape alpha: 3.121
+Parameters optimization took 3 rounds (0.858 sec)
+Wrote distance file to... 
+Computing ML distances based on estimated model parameters...
+Calculating distance matrix: done in 0.0297241 secs using 99.92% CPU
+Computing ML distances took 0.029788 sec (of wall-clock time) 0.029750 sec (of CPU time)
+Setting up auxiliary I and S matrices: done in 9.05991e-06 secs using 77.26% CPU
+Constructing RapidNJ tree: done in 1.3113e-05 secs using 76.26% CPU
+Computing RapidNJ tree took 0.000043 sec (of wall-clock time) 0.000027 sec (of CPU time)
+Log-likelihood of RapidNJ tree: -11833.745
+--------------------------------------------------------------------
+|             INITIALIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Generating 98 parsimony trees... 0.080 second
+Computing log-likelihood of 92 initial trees ... 4.398 seconds
+Current best score: -11833.745
+
+Do NNI search on 20 best initial trees
+Estimate model parameters (epsilon = 0.100)
+BETTER TREE FOUND at iteration 1: -11833.670
+Iteration 10 / LogL: -11834.681 / Time: 0h:1m:30s
+Iteration 20 / LogL: -11834.143 / Time: 0h:1m:36s
+Finish initializing candidate tree set (2)
+Current best tree score: -11833.670 / CPU time: 14.528
+Number of iterations: 20
+--------------------------------------------------------------------
+|               OPTIMIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Iteration 30 / LogL: -11833.720 / Time: 0h:1m:44s (0h:0m:58s left)
+Iteration 40 / LogL: -11847.228 / Time: 0h:1m:51s (0h:0m:47s left)
+Iteration 50 / LogL: -11833.703 / Time: 0h:1m:59s (0h:0m:39s left)
+Log-likelihood cutoff on original alignment: -11855.374
+Iteration 60 / LogL: -11843.278 / Time: 0h:2m:6s (0h:0m:31s left)
+UPDATE BEST LOG-LIKELIHOOD: -11833.670
+Iteration 70 / LogL: -11843.403 / Time: 0h:2m:13s (0h:0m:23s left)
+Iteration 80 / LogL: -11833.741 / Time: 0h:2m:20s (0h:0m:15s left)
+Iteration 90 / LogL: -11834.650 / Time: 0h:2m:27s (0h:0m:8s left)
+Iteration 100 / LogL: -11848.656 / Time: 0h:2m:36s (0h:0m:0s left)
+Log-likelihood cutoff on original alignment: -11855.374
+NOTE: Bootstrap correlation coefficient of split occurrence frequencies: 0.997
+TREE SEARCH COMPLETED AFTER 102 ITERATIONS / Time: 0h:2m:37s
+
+--------------------------------------------------------------------
+|                    FINALIZING TREE SEARCH                        |
+--------------------------------------------------------------------
+Performs final model parameters optimization
+Estimate model parameters (epsilon = 0.010)
+1. Initial log-likelihood: -11833.670
+Optimal log-likelihood: -11833.670
+Gamma shape alpha: 3.142
+Parameters optimization took 1 rounds (0.138 sec)
+BEST SCORE FOUND : -11833.670
+
+Testing tree branches by SH-like aLRT with 1000 replicates...
+0.318 sec.
+Creating bootstrap support values...
+Split supports printed to NEXUS file /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.splits.nex
+Total tree length: 2.557
+
+Total number of iterations: 102
+CPU time used for tree search: 75.406 sec (0h:1m:15s)
+Wall-clock time used for tree search: 75.585 sec (0h:1m:15s)
+Total CPU time used: 157.770 sec (0h:2m:37s)
+Total wall-clock time used: 158.092 sec (0h:2m:38s)
+
+Computing bootstrap consensus tree...
+Reading input file /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.splits.nex...
+11 taxa and 47 splits.
+Consensus tree written to /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.contree
+Reading input trees file /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.contree
+Log-likelihood of consensus tree: -11833.673
+
+Analysis results written to: 
+  IQ-TREE report:                /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.iqtree
+  Maximum-likelihood tree:       /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.treefile
+  Likelihood distances:          /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.mldist
+
+Ultrafast bootstrap approximation results written to:
+  Split support values:          /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.splits.nex
+  Consensus tree:                /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.contree
+  Screen log file:               /Users/rodenico/Documents/Pro/Articles/2023_CI_Experiment/Y2025.Wolbachia.CI/data/genomic_data/fasta_for_tree/iqtree/cifAB.log
+
+Date and Time: Thu Sep 24 15:17:52 2026
