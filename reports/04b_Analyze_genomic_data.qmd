@@ -429,14 +429,17 @@ tree_rooted <- root(
   resolve.root = TRUE
 )
 
+tree_rooted$node.label[tree_rooted$node.label == "Root"] <- NA
+
 library(ggtree)
 
-p <- ggtree(tree_rooted, layout = "rectangular") +
+p <- ggtree(tree_rooted, layout = "rectangular", linewidth = 0.8) +
   geom_tiplab(size = 3) +
   geom_text2(
     aes(
       subset = !isTip,
-      label = sub(".*/", "", label),
+      label =sub("/.*", "", label), #for bootstrap
+      #label = sub(".*/", "", label), #for SH-aLRT
       #label = label
     ),
     size = 3,
@@ -446,29 +449,166 @@ p <- ggtree(tree_rooted, layout = "rectangular") +
   )
 p  + xlim(0, max(p$data$x) + 0.3)
 
-
 ## Change position of bootstrap
 p <- ggtree(
   tree_rooted,
-  layout = "rectangular"
-) +
-  # All bootstrap values except nodes 18 and 22
-  geom_text2(
-    aes(
-      subset = !isTip & node !=22,
-      label = sub("/.*", "", label)
-    ),
-    size = 3,
-    hjust = 0,
-    nudge_x = -0.04,
-    nudge_y = 0.15
+  layout = "rectangular",
+  linewidth = 0.8
+)
+
+typeI_y <- p$data |>
+  dplyr::filter(
+    isTip,
+    grepl("_TypeI_", label)
+  ) |>
+  dplyr::pull(y)
+
+typeII_y <- p$data |>
+  dplyr::filter(
+    isTip,
+    grepl("_TypeII_", label)
+  ) |>
+  dplyr::pull(y)
+
+typeIV_y <- p$data |>
+  dplyr::filter(
+    isTip,
+    grepl("_TypeIV_", label)
+  ) |>
+  dplyr::pull(y)
+
+rectangle_xmax <- max(p$data$x) + 0.28
+
+p <- p +
+  annotate(
+    "rect",
+    xmin = 0,
+    xmax = rectangle_xmax,
+    ymin = min(typeI_y) - 0.45,
+    ymax = max(typeI_y) + 0.45,
+    fill = "#E83E8C",
+    alpha = 0.15
   ) +
+  annotate(
+    "rect",
+    xmin = 0,
+    xmax = rectangle_xmax,
+    ymin = min(typeII_y) - 0.45,
+    ymax = max(typeII_y) + 0.45,
+    fill = "#E89C50",
+    alpha = 0.15
+  ) +
+  annotate(
+    "rect",
+    xmin = 0,
+    xmax = rectangle_xmax,
+    ymin = min(typeIV_y) - 0.45,
+    ymax = max(typeIV_y) + 0.45,
+    fill = "#7CBF45",
+    alpha = 0.15
+  ) +
+  geom_tree(
+    linewidth = 0.8
+  )
+
+p$data$UFBoot <- suppressWarnings(
+  as.numeric(sub(".*/", "", p$data$label))
+)
+
+p$data$UFBoot_group <- cut(
+  p$data$UFBoot,
+  breaks = c(14, 49, 68, 88, 100),
+  labels = c("15-49", "50-68", "69-88", "89-100"),
+  include.lowest = TRUE
+)
+
+node_data <- p$data |>
+  dplyr::filter(
+    !isTip,
+    !is.na(UFBoot_group)
+  )
+
+p <- p +
+  geom_point(
+  data = node_data,
+  aes(
+    x = x,
+    y = y,
+    colour = UFBoot_group
+  ),
+  inherit.aes = FALSE,
+  shape = 16,
+  size = 3) +
+  geom_tiplab(
+  aes(
+    label = sub("_cifAB", "", label),
+    fontface = ifelse(
+      grepl("^wSuz", label),
+      "bold",
+      "plain"
+    )
+  ),
+  size = 3.8,
+  offset = 0.015
+) +
+  geom_treescale(
+    x = 0.03,
+    y = 11.5,
+    width = 0.2,
+    fontsize = 3.5,
+    linesize = 0.8,
+    offset = -0.60
+  ) + labs(
+  colour = "Bootstrap values"
+) +
+guides(
+  colour = guide_legend(
+    nrow = 1,
+    byrow = TRUE
+  )
+) +
+theme(
+  legend.position = "bottom",
+  legend.direction = "horizontal",
+  legend.box.spacing = grid::unit(0, "pt"),
+  legend.margin = margin(
+    t = -8,
+    r = 0,
+    b = 0,
+    l = 0
+  ),
+  plot.margin = margin(
+    t = 5,
+    r = 5,
+    b = 0,
+    l = 5
+  )
+)
+
+p_final <- p +
+  xlim(
+    0,
+    max(p$data$x) + 0.3
+  ) +
+  expand_limits(
+    y = 0
+  )
+
+p_final
+
+ggsave(
+  file.path(here::here(), "plots", "Fig.4B_cif_phylogeny.pdf"),
+  plot = p_final,
+  width = 19,
+  height = 10,
+  units = "cm"
+)
 
   # Node 22: move down
   geom_text2(
     aes(
       subset = !isTip & node == 22,
-      label = sub("/.*", "", label)
+      label = sub(".*/", "", label)
     ),
     size = 3,
     hjust = 0,
@@ -478,8 +618,8 @@ p <- ggtree(
   geom_tiplab(size = 2.5)
 
 p + xlim(0, max(p$data$x) + 0.3)
-ggsave(file.path(here::here(), "plots", "Fig.4C_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
 
+ggsave(file.path(here::here(), "plots", "Fig.4B_cif_phylogeny.pdf"), width = 19, height = 10, units = "cm")
 
 ggtree(tree_rooted)$data|>
 print(n = 23)
@@ -516,8 +656,6 @@ p +
   alpha = 0.02,
   colour = NA
 )
-
-
 
 #rm(data/genomic_data/fasta_for_tree)
 ```
