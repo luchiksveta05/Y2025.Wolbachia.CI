@@ -478,7 +478,7 @@ p <- ggtree(
   geom_tiplab(size = 2.5)
 
 p + xlim(0, max(p$data$x) + 0.3)
-ggsave(file.path(here::here(), "plots", "Fig.4C_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
+ggsave(file.path(here::here(), "plots", "Fig.4B_cif_phylogeny.pdf"), width = 30, height = 10, units = "cm")
 
 
 ggtree(tree_rooted)$data|>
