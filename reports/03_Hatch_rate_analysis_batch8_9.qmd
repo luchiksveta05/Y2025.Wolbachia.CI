@@ -664,14 +664,14 @@ dat <- dat |>
     )
   )
 
-## Predicted embryo mortality for cytoplasmic effect
+## Predicted hatch rate for cytoplasmic effect
 
 pBal1 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Par6, y = pred.cond), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Par6, y = cytopl, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  geom_point(data = dat, aes(x = prop_Par6, y = cytopl, fill = Strain_label), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain_label), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
+  scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
   labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Cytoplasmic effect") +
@@ -722,6 +722,9 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 ## Plot for predicted F1 and F2 with dominant effect Par6 / Bal
 ```{r, eval=FALSE}
 
+#Add proportion of Par6 genes 
+dat$prop_Par6 <- 1-dat$prop_Bal
+
 #Add predicted values for dominance effect
 dat$dominance <- dat$Estimate
 
@@ -744,8 +747,6 @@ dat <- dat |> dplyr::mutate(
      stringr::str_detect(Strain, "F1 ") ~ dom_F1,
     stringr::str_detect(Strain, "F2 ") ~ dom_F2,
       TRUE ~ dominance))
-
-dat$prop_Par6 <- 1-dat$prop_Bal
 
 #Change proportion of Par6 for the figure
 dat <- dat |>
@@ -786,13 +787,13 @@ dat <- dat |>
 
 pBal2 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Par6, y = pred.cond), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Par6, y = dominance, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  geom_point(data = dat, aes(x = prop_Par6, y = dominance, fill = Strain_label), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain_label), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
+  scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Recessive effect") +
+  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Dominant effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -836,6 +837,9 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 ## Plot for predicted F1 and F2 with X effect Par6 / Bal
 ```{r, eval=FALSE}
 
+#Add proportion of Par6 genes 
+dat$prop_Par6 <- 1-dat$prop_Bal
+
 #Add predicted values for X-linked effect
 dat$X <- dat$Estimate
 
@@ -849,8 +853,6 @@ dat <- dat |> dplyr::mutate(
      stringr::str_detect(Strain, "F1 Bal") ~ X_F1_B,
     stringr::str_detect(Strain, "F2 ") ~ X_F2,
       TRUE ~ X))
-
-dat$prop_Par6 <- 1-dat$prop_Bal
 
 #Change proportion of Bal for the figure
 dat <- dat |>
@@ -891,10 +893,10 @@ dat <- dat |>
 
 pBal3 <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Par6, y = pred.cond), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat, aes(x = prop_Par6, y = X, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
+  geom_point(data = dat, aes(x = prop_Par6, y = X, fill = Strain_label), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
+  geom_text(data = dat, aes(x = label_x, y = label_y, label = Strain_label, color = Strain_label), size = 10, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
+  scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
   labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "X-linked effect") +
@@ -946,12 +948,27 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 library(ggplot2)
 library(patchwork)
 
-top_plot <- (pBal1 + pBal2 + pBal3) +
-  plot_layout(axis_titles = "collect")
+pBal1_clean <- pBal1 + labs(x = " ", y = " ")
+pBal2_clean <- pBal2 + labs(x = " ", y = " ")
+pBal3_clean <- pBal3 + labs(x = " ", y = " ")
 
-combined_plot <- (top_plot / pBal) + plot_layout(heights = c(30, 90)) + plot_annotation(tag_levels = "A", theme(plot.tag = element_text(size = 60, face = "bold")))
+pBal1_clean <- pBal1 + labs(x = " ", y = " ") + theme(plot.margin = margin(0, 40, 0, 80))
+
+pBal2_clean <- pBal2 + labs(x = " ", y = " ") + theme(plot.margin = margin(0, 40, 0, 80))
+
+pBal3_clean <- pBal3 + labs(x = " ", y = " ") + theme(plot.margin = margin(0, 40, 0, 80))
+
+top_core <- cowplot::plot_grid(pBal1_clean, pBal2_clean, pBal3_clean, nrow = 1, labels = c("A", "B", "C"), label_size = 60, label_fontface = "bold")
+
+top_plot <- cowplot::ggdraw() + cowplot::draw_plot(top_core, x = 0, y = 0, width = 1, height = 1) + cowplot::draw_label("Hatch rate in test cross", x = 0.025, y = 0.55, angle = 90, size = 50, fontface = "bold", colour = "black") + cowplot::draw_label("Proportion of supressor allele(s)", x = 0.53, y = 0.04, size = 50, fontface = "bold", colour = "black")
+
+bottom_plot <- cowplot::plot_grid(pBal, labels = "D", label_size = 60, label_fontface = "bold")
+
+combined_plot <- cowplot::ggdraw() + cowplot::draw_plot(cowplot::plot_grid(top_plot, bottom_plot, ncol = 1, rel_heights = c(30, 90)), x = 0.025, y = 0.02, width = 0.965, height = 0.965)
+
 combined_plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all.pdf"
+
+title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all_2.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), combined_plot, base_height = 120/cm(1), base_width = 120/cm(1), dpi = 1200)
 
 ```
