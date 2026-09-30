@@ -143,15 +143,15 @@ extract_model <- function(.){
 #' Extract the likelihood from glmmTMB model
 #' @export
 #'
-assignInNamespace(
-  "logLik.glmmTMB",
-  function(object, ...) {
-    structure(
-      -object$fit$objective,
-      df   = as.integer(length(object$fit$par)),
-      nobs = as.integer(nobs(object)),
-      class = "logLik"
-    )
-  },
-  ns = "glmmTMB"
-)
+# assignInNamespace(
+#   "logLik.glmmTMB",
+#   function(object, ...) {
+#     structure(
+#       -object$fit$objective,
+#       df   = as.integer(length(object$fit$par)),
+#       nobs = as.integer(nobs(object)),
+#       class = "logLik"
+#     )
+#   },
+#   ns = "glmmTMB"
+# )
