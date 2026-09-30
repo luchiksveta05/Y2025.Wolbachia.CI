@@ -193,8 +193,28 @@ sum(ind.callrate<=0.9)
 snp.callrate <- apply(wSuz.pooldata@readcoverage, 1, function(x) sum(x != 0)/ncol(wSuz.pooldata@readcoverage))
 sum(snp.callrate<=0.9)
 
-## Filter 36 SNPs with fewer than 90% of individual samples covered
+## Filter 36 variants with fewer than 90% of individual samples covered
 wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
+
+# Number of SNPs
+sum(
+  nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
+  nchar(wSuz.pooldata@snp.info$AltAllele) == 1
+)
+wSuz.pooldata@snp.info[nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
+  nchar(wSuz.pooldata@snp.info$AltAllele) == 1,]
+
+# Number of indels
+sum(
+  nchar(wSuz.pooldata@snp.info$RefAllele) != nchar(wSuz.pooldata@snp.info$AltAllele)
+)
+
+wSuz.pooldata@snp.info[nchar(wSuz.pooldata@snp.info$RefAllele) != nchar(wSuz.pooldata@snp.info$AltAllele),]
+
+
+## Filter 18 variants which are not SNPs
+wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
+  nchar(wSuz.pooldata@snp.info$AltAllele) == 1))
 ```
 
 # Check MAF across samples
@@ -344,7 +364,7 @@ p <- ggtree(tree_rooted, layout = "rectangular") +
   )
 p
 
-ggsave(file.path(here::here(), "plots", "Fig.4B_Wol_phylogeny.pdf"), width = 30, height = 10, units = "cm")
+ggsave(file.path(here::here(), "plots", "Fig.4C_Wol_phylogeny.pdf"), width = 30, height = 10, units = "cm")
 ```
 
 
@@ -413,7 +433,7 @@ tmp4<-ggplot(data, aes(x = PC1, y = PC4, label = sample,color=strain)) +
 ## Export graphs
 (tmp1 | tmp2 ) /
       (tmp3 | tmp4)
-ggsave(file.path(here::here(), "plots", "Fig.SX_PCA.pdf"), width = 20, height = 20, units = "cm")
+#ggsave(file.path(here::here(), "plots", "Fig.SX_PCA.pdf"), width = 20, height = 20, units = "cm")
 
 rm(data)
 ```

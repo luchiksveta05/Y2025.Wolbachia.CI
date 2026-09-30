@@ -324,7 +324,7 @@ pBal <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Par6, y = pred.cond), color = "black", linewidth = 1.5) +
   scale_color_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
-  labs(x = "Proportion of Par6 genes", y = "Hatch rate in test cross", color = "Male strain") +
+  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", color = "Male strain") +
   theme(plot.title = element_text(size = 90, face = "bold", hjust = 0.5, margin = margin(b = 60)), plot.margin = margin(t = 120, r = 90, b = 120, l = 120), axis.text = element_text(size = 75), axis.title = element_text(size = 90, face = "bold"), axis.title.x = element_text(margin = margin(t = 60)), axis.title.y = element_text(margin = margin(r = 60)), legend.position = "none")
 
 
@@ -674,7 +674,7 @@ pBal1 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Par6 genes", y = "Hatch rate in test cross", title = "Cytoplasmic effect") +
+  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Cytoplasmic effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -792,7 +792,7 @@ pBal2 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Par6 genes", y = "Hatch rate in test cross", title = "Recessive effect") +
+  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Recessive effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -897,7 +897,7 @@ pBal3 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Par6 genes", y = "Hatch rate in test cross", title = "X-linked effect") +
+  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "X-linked effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -946,8 +946,10 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 library(ggplot2)
 library(patchwork)
 
-top_plot <- pBal1 + pBal2 + pBal3 
-combined_plot <- (top_plot / pBal) + plot_layout(heights = c(30, 90)) + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(size = 60, face = "bold"))
+top_plot <- (pBal1 + pBal2 + pBal3) +
+  plot_layout(axis_titles = "collect")
+
+combined_plot <- (top_plot / pBal) + plot_layout(heights = c(30, 90)) + plot_annotation(tag_levels = "A", theme(plot.tag = element_text(size = 60, face = "bold")))
 combined_plot
 title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), combined_plot, base_height = 120/cm(1), base_width = 120/cm(1), dpi = 1200)
