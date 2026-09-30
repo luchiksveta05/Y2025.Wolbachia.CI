@@ -8,8 +8,9 @@ wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	823039	826560	wSuz_typeI_cif
 wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	578146	578470	wSuz_typeII_cifA	cifA	TypeII_cifA_1	TypeII_cifAB	325	+
 wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	780652	781700	wSuz_typeII_cifA	cifA	TypeII_cifA_2	TypeII_cifAB	1049	+
 wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	781710	783974	wSuz_typeII_cifB	cifB	TypeII_cifB	TypeII_cifAB	2265	+
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	185352	186044	wsp_wSuz	wsp	wsp	wsp_FtsZ	693	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	532774	533970	FtsZ_wSuz	FtsZ	FtsZ	wsp_FtsZ	1197	-
 wSuz_4	RW2025a:ptg000692l	wSuz_4 RW2025a:ptg000692l	51754	53217	sr3WO_wSuz	sr3WO	sr3WO_1	sr3WO	1464	-
 wSuz_2	RW2025a:ptg000237l	wSuz_2 RW2025a:ptg000237l	268302	269765	sr3WO_wSuz	sr3WO	sr3WO_2	sr3WO	1464	-
 wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	831017	832480	sr3WO_wSuz	sr3WO	sr3WO_3	sr3WO	1464	+
-wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	185352	186044	wsp_wSuz	wsp	wsp	wsp_FtsZ	693	-
-wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	532774	533970	FtsZ_wSuz	FtsZ	FtsZ	wsp_FtsZ	1197	-
+wSuz_1	RW2025a:ptg000036l	wSuz_1 RW2025a:ptg000036l	789169	789253	sr3WO_trunc_wSuz	sr3WO_trunc	sr3WO_3_trunc	sr3WO	85	-
