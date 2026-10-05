@@ -113,7 +113,7 @@ table(cifAB_sites$gene)
 
 ## Extract genotypes at the selected site
 gt <- extract.gt(vcf9, element = "GT")
-gt_cifAB <- gt[cifAB_sites$row, , drop = FALSE]
+gt_cifAB <- gt[cifAB_sites$row, ]
 gt_cifAB
 
 
@@ -124,7 +124,6 @@ gt_cifAB
 ```{r, eval=TRUE}
 
 ## Load sample names without filter
-#vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.gvcf.gz")
 vcf_path <- file.path(here::here(), "data", "genomic_data", "vcf_data", "all41.bamlist.freebayes.noclump.filtq20.vcf.gz")
 vcf <- vcfR::read.vcfR(vcf_path)
 
@@ -157,6 +156,8 @@ sort(colSums(wSuz.pooldata@readcoverage[, grep("Ko-Nam_NW|Ko-San_SN6|CN-Kun_KM|D
 
 ## Check coverage of wRI
 sort(colSums(wSuz.pooldata@readcoverage[, grep("sim", wSuz.pooldata@poolnames)]))
+
+
 
 ```
 
@@ -204,6 +205,29 @@ sum(snp.callrate<=0.9) #38 SNP
 ## Filter 36 variants with fewer than 90% of individual samples covered
 wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(snp.callrate>0.9))
 
+```
+
+
+## Check variants that are different between Bal/Trento vs Par6 and Renes
+```{r}
+
+samples <- c("Col-FR-Bal001", "Col-IT-Tre000", "Iso-FR-Par006", "Col-FR-Ren000")
+
+freq <- wSuz.pooldata@refallele.readcount[, samples]/wSuz.pooldata@readcoverage[, samples]
+
+freq_diff <- freq[
+  apply(freq, 1, function(x) max(x, na.rm = TRUE) - min(x, na.rm = TRUE) > 0.2),]
+
+## Correlation of variants across samples
+pairs(freq_diff)
+
+## Variant that differ by more than 20% between strains are the one that are specific to the sample from Rennes
+freq[abs(
+  rowMeans(freq[, 1:2], na.rm = TRUE) -
+  rowMeans(freq[, 3:4], na.rm = TRUE)
+) > 0.2, ]
+
+
 # Number of SNPs
 sum(
   nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
@@ -223,6 +247,7 @@ wSuz.pooldata@snp.info[nchar(wSuz.pooldata@snp.info$RefAllele) != nchar(wSuz.poo
 ## Filter 18 variants which are not SNPs
 wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
   nchar(wSuz.pooldata@snp.info$AltAllele) == 1))
+
 ```
 
 # Check MAF across samples
