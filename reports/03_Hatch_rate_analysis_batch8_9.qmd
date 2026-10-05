@@ -118,7 +118,7 @@ dat_g$alpha1 <- as.factor(dat_g$CrossType)
 levels(dat_g$alpha1) <- c(1, 0, 0, 0, 0,-1) # alphabetical order
 dat_g$alpha1 <- as.numeric(as.character(dat_g$alpha1))
 
-## Variable for dominance (Par6/Bal: -1, F1: +1, F2: 0.5)
+## Variable for dominance (Par6/Bal: 0, F1: +1, F2: 0.5)
 dat_g$dominance <- as.factor(dat_g$CrossType)
 levels(dat_g$dominance) <- c(0, 1, 1, 0.5, 0.5, 0)
 dat_g$dominance <- as.numeric(as.character(dat_g$dominance))
@@ -131,6 +131,11 @@ levels(dat_g$cyto) <- c("Bal", "Bal", "Par6", "Bal",  "Par6", "Par6")
 dat_g$X <- as.factor(dat_g$CrossType)
 levels(dat_g$X) <- c(1, 1, -1, 0, 0, -1)
 dat_g$X <- as.numeric(as.character(dat_g$X))
+
+## Variable for Y effect (Par6: -1, Bal: +1, F1: -1 (Par6 father) or +1 (Bal father), F2: -1 (Par6 grandfather) or +1 (Bal grandfather))
+dat_g$Y <- as.factor(dat_g$CrossType)
+levels(dat_g$Y) <- c("Bal", "Par6", "Bal", "Par6",  "Bal", "Par6")
+
 
 ## Fit saturated model (generation x cross direction)
 m0 <- glmmTMB::glmmTMB(prop ~  -1 + CrossType + (1| CoupleID) , data=dat_g, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
@@ -172,11 +177,20 @@ m7 <- glmmTMB::glmmTMB(prop ~ alpha1 + X + dominance + (1| CoupleID) , data=dat_
 summary(m7)
 #glmmTMB::diagnose(m7)
 
-aic <- as.data.frame (MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7))
+##Y effect, autosomal additive and dominance effects
+m8 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance +Y + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
+summary(m8)
+
+## Y effect, cytoplasmic, additive autosomal and dominance autosomal effects
+m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + cyto +Y + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
+summary(m9)
+#glmmTMB::diagnose(m6)
+
+aic <- as.data.frame (MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7, m8))
 
 write.csv(
   tibble::rownames_to_column(as.data.frame(aic), "model"),
-  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2.csv"),
+  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_Y.csv"),
   row.names = FALSE
 )
 
