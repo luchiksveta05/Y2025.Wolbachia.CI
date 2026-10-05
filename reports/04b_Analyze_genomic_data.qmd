@@ -621,41 +621,5 @@ p + xlim(0, max(p$data$x) + 0.3)
 
 ggsave(file.path(here::here(), "plots", "Fig.4B_cif_phylogeny.pdf"), width = 19, height = 10, units = "cm")
 
-ggtree(tree_rooted)$data|>
-print(n = 23)
-
-p +
-  # Type I (node 19)
-  geom_rect(
-    xmin = 0.75,
-    xmax = 1.2,
-    ymin = 4.5,
-    ymax = 12.5,
-    fill = "#FF339C",
-    alpha = 0.02,
-    colour = NA
-  ) +
-  
-  # Type II
-  geom_rect(
-    xmin = 0.3,
-    xmax = 1.1,
-    ymin = 1.5,
-    ymax = 4.5,
-    fill = "#EF7C3A",
-    alpha = 0.02,
-    colour = NA
-  )+
-   # Type IV
-  geom_rect(
-  xmin = 1.1,
-  xmax = 1.4,
-  ymin = 0.5,
-  ymax = 1.5,
-  fill = "#90D254",
-  alpha = 0.02,
-  colour = NA
-)
-
 #rm(data/genomic_data/fasta_for_tree)
 ```
