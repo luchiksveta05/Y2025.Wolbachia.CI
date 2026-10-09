@@ -231,4 +231,8 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 #Save mean Wolbachia titer estimation
 write.table(x = data_density, file=file.path(here::here(), "data", "derived_data", "Wolb_mean_titer.csv"), sep=";", row.names = FALSE)
 
+#Check the correlation
+
+corr<- cor.test(x=1:4,y=1:4, method = "pearson")
+
 ```

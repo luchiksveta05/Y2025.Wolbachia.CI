@@ -186,7 +186,7 @@ summary(m8)
 
 ## Y effect, cytoplasmic, additive autosomal and dominance autosomal effects
 m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + cyto +Y + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m9)
+summary(m9) # Y effect is not identifiable, beccause difference in the reciprocal crosses could be due to the cytoplasmic effect or Y effect
 #glmmTMB::diagnose(m6)
 
 aic <- as.data.frame (MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7, m8))
