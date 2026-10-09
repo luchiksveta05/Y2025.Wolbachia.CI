@@ -113,6 +113,9 @@ write.table(x = dat_g, file=file.path(here::here(), "data", "derived_data", "Cou
 ## Variable to fit different variances for F2 vs. the other crosstypes
 dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
 
+## Levels of factor Crosstype
+levels(as.factor(dat_g$CrossType))
+
 ## Variable for autosomal effect (Par6: -1, Bal: +1, F1/F2: 0)
 dat_g$alpha1 <- as.factor(dat_g$CrossType)
 levels(dat_g$alpha1) <- c(1, 0, 0, 0, 0,-1) # alphabetical order
