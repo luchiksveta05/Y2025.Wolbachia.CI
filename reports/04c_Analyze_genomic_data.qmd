@@ -216,10 +216,13 @@ samples <- c("Col-FR-Bal001", "Col-IT-Tre000", "Iso-FR-Par006", "Col-FR-Ren000")
 freq <- wSuz.pooldata@refallele.readcount[, samples]/wSuz.pooldata@readcoverage[, samples]
 
 freq_diff <- freq[
-  apply(freq, 1, function(x) max(x, na.rm = TRUE) - min(x, na.rm = TRUE) > 0.2),]
+  apply(freq, 1, function(x) max(x, na.rm = TRUE) - min(x, na.rm = TRUE) > 0.3),]
 
 ## Correlation of variants across samples
 pairs(freq_diff)
+
+## Variant that differ among strains
+freq[rowSums(abs(freq - rowMeans(freq, na.rm = TRUE)) > 0.4) > 0, ]
 
 ## Variant that differ by more than 20% between strains are the one that are specific to the sample from Rennes
 freq[abs(
@@ -247,6 +250,8 @@ wSuz.pooldata@snp.info[nchar(wSuz.pooldata@snp.info$RefAllele) != nchar(wSuz.poo
 ## Filter 18 variants which are not SNPs
 wSuz.pooldata <- poolfstat::pooldata.subset(pooldata=wSuz.pooldata,  snp.index = which(nchar(wSuz.pooldata@snp.info$RefAllele) == 1 &
   nchar(wSuz.pooldata@snp.info$AltAllele) == 1))
+
+allele_freq <- wSuz.pooldata@refallele.readcount/wSuz.pooldata@readcoverage
 
 ```
 
