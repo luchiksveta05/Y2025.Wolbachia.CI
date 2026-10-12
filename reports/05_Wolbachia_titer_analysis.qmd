@@ -76,26 +76,97 @@ data_mean <- data_mean |>
   dplyr::left_join(data1 |> dplyr::distinct(Strain, CI), by = "Strain")
   
  ## Export file with mean titer and confidence intervals values
-write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", "Mean_titer.csv"), sep=";", row.names = FALSE) 
+write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", "Mean_titer.csv"), sep=";", row.names = FALSE)
+
+```
+                      
+# Difference between four lines naturallu infected with Wolbachia
+```{r}
+
+#Filter only naturally infected lines
+data2 <- data1 |>
+  dplyr::filter(Strain %in% c("Bal", "Trento", "Par6","Rennes"))
+
+## Overall difference among lines
+m <- lm(log10(Titer) ~ Strain, data = data2)
+anova(m)
+
+## Check model assumptions
+par(mfrow = c(2,2)); plot(m); par(mfrow = c(1,1))
+
+p_diag <- ggplotify::as.ggplot(function() {
+  graphics::par(mfrow = c(2, 2))
+  graphics::plot(m)
+})
+
+cowplot::save_plot(file = here::here("plots", "model_diagnostics_titers.pdf"),
+                   p_diag, base_height = 13.5/cm(1),
+                   base_width = 16/cm(1), dpi = 1200)
+
+## Pairwise comparisons, back-transformed to fold differences
+
+library(emmeans)
+em <- emmeans(m, ~ Strain, type = "response")
+em
+pw <- pairs(em, adjust = "tukey")
+tab_pw <- merge(as.data.frame(summary(pw)),
+                as.data.frame(confint(pw))[, c("contrast", "lower.CL", "upper.CL")],
+                by = "contrast", sort = FALSE)
+
+write.csv2(tab_pw, here::here("data", "derived_data", "titer_pairwise.csv"), row.names = FALSE)
 
 ```
                       
 # Figure with titers for Europe
 ```{r}
   
-# Plot titer
-ggplot(data1, aes(x = Strain, y = Titer)) +
-  geom_boxplot(outlier.shape = 16, outlier.size = 1.5) +
-  #facet_wrap(~Strain, scales = "free_y") +
-  #scale_fill_manual(values = c("18°C" = "blue", "25°C" = "red")) +
-  #scale_y_log10() +  # Log scale for better visualization
-  labs(y = "Wolbachia titer") +
-  theme_bw() +
+
+# add information about CI level
+
+data2 <-data2|>
+  dplyr::mutate(CI_strength = c(Trento = 0.47, Bal = 0.74,
+                                       Par6 = 0, Rennes = 0)[Strain])
+
+#Add labels with CI estimate
+labs_x <- with(unique(data2[, c("Strain", "CI_strength")]),
+               setNames(sprintf("%s\n(%d%%)", Strain, round(CI_strength * 100)), Strain))
+
+##Plot Fig S3
+
+p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
+  geom_jitter(width = 0.12, height = 0, size = 4, alpha = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 6, shape = 16) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",
+               width = 0.12, linewidth = 0.5) +
+  ggsignif::geom_signif(comparisons = list(c("Trento","Bal"), c("Trento","Par6")),
+                        annotations = c("*","*"),
+                        y_position = c(100, 110),
+                        textsize = 6, colour = "black") +
+  scale_colour_manual(values = c("CI" = "#DD3497", "no CI" = "#54278F"),
+                      name = NULL) +
+  scale_x_discrete(labels = labs_x) +
+  labs(x = NULL, y = expression(italic("Wolbachia")~"titer in testes")) +
+  theme_classic(base_size = 13) +
   theme(
-    strip.text = element_text(face = "bold"),
-    legend.title = element_blank(),
-    legend.position = "right"
+    axis.line            = element_line(linewidth = 0.4),
+    axis.ticks           = element_line(linewidth = 0.4),
+    axis.title.y         = element_text(size = 16),
+    axis.text            = element_text(size = 14, colour = "black"),
+    axis.text.x          = element_text(size = 15, face = "bold", colour = "black"),
+    legend.position      = c(0.99, 0.99),
+    legend.justification = c(1, 1),
+    legend.background    = element_blank(),
+    legend.text          = element_text(size = 12),
+    plot.margin          = margin(6, 8, 6, 6)
   )
+p
+
+
+#Save the plot
+title_plot <- "Fig_3_titers3.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   p, base_height = 13.5/cm(1),
+                   base_width = 16/cm(1), dpi = 1200)
 
 ```
 # Plot for introgressed strains and nanural strains (Supplementary text)
@@ -207,7 +278,7 @@ pTit <- ggplot(data_density, aes(x = mean_titer, y = Estimate)) +
 ggrepel::geom_text_repel(data = data_density |> dplyr::filter(infstrain == "Par6"), aes(label = infstrain), color = "black", alpha = 0.7, size = 5, nudge_x = -5, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
 ggrepel::geom_text_repel(data = data_density |> dplyr::filter(infstrain == "Rennes"), aes(label = infstrain), color = "black", alpha = 0.7, size = 5, nudge_x = 8, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
   #ggrepel::geom_text_repel(aes(label = infstrain, color = "black"),size = 5, nudge_x = 7, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
-  ggpubr::stat_cor(method = "spearman", cor.coef.name = "rho", label.x = 0.1, label.y = 0.9) +  # Spearman correlation coefficient
+  ggpubr::stat_cor(method = "pearson", label.x = 0.1, label.y = 0.9) +  # Spearman correlation coefficient
   scale_color_manual(values = c("CI" = "sienna1", "no CI" = "yellow3")) +  # Custom colors
   labs(
     x = expression(italic("Wolbachia")~" titer"),
@@ -234,5 +305,6 @@ write.table(x = data_density, file=file.path(here::here(), "data", "derived_data
 #Check the correlation
 
 corr<- cor.test(x=1:4,y=1:4, method = "pearson")
+cor.test(data_density$mean_titer, data_density$Estimate, method = "pearson", exact = FALSE)
 
 ```
