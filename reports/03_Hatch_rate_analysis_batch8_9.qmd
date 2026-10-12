@@ -534,7 +534,8 @@ summary(msat)
 
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
-b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimateCI = FALSE, estimate_hatche_rate=TRUE), nsim=5, .progress="txt")
+set.seed(123)
+b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimateCI = FALSE, estimate_hatche_rate=TRUE), nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
 confint_msat <- data.frame(bCI_tab(b=b1)) |>
@@ -559,7 +560,8 @@ summary(m1)
 
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
-b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=5, .progress="txt")
+set.seed(123)
+b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
 confint_full_model <- data.frame(bCI_tab(b=b1))
@@ -1366,8 +1368,9 @@ title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all_2.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), combined_plot, base_height = 120/cm(1), base_width = 120/cm(1), dpi = 1200)
 
 ```
-# Plot predicted embryo mortality for different genetic models
 
+
+# Plot predicted embryo mortality for different genetic models
 ## Plot for predicted F1 and F2 with cytoplasmic effect Par6 / Bal
 ```{r, eval=FALSE}
 

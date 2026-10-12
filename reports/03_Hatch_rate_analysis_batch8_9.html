@@ -3022,7 +3022,7 @@ m_var                                         2.1494      1     0.1426</code></p
     on 10000 replicates)
 
 data:  obs
-X-squared = 1.6667, df = NA, p-value = 0.4256</code></pre>
+X-squared = 1.6667, df = NA, p-value = 0.429</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Two equal loci, additive (extremes 1/16 each)</span></span>
 <span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="fu">chisq.test</span>(obs, <span class="at">p =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">14</span>, <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">16</span>, <span class="at">simulate.p.value =</span> <span class="cn">TRUE</span>, <span class="at">B =</span> <span class="fl">1e4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -3192,7 +3192,8 @@ CrossTypeF2 Par6xBalxPar6xBalxF2 Par6xBalxPar6xBal
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Estimation of confidence intervals</span></span>
 <span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Refit model nsim=500 times</span></span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(msat, <span class="at">FUN=</span><span class="cf">function</span>(fit) <span class="fu">extract_model</span>(fit, <span class="at">estimateCI =</span> <span class="cn">FALSE</span>, <span class="at">estimate_hatche_rate=</span><span class="cn">TRUE</span>), <span class="at">nsim=</span><span class="dv">5</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(msat, <span class="at">FUN=</span><span class="cf">function</span>(fit) <span class="fu">extract_model</span>(fit, <span class="at">estimateCI =</span> <span class="cn">FALSE</span>, <span class="at">estimate_hatche_rate=</span><span class="cn">TRUE</span>), <span class="at">nsim=</span><span class="dv">500</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>================================================================================</code></pre>
 </div>
@@ -3255,7 +3256,8 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Estimation of confidence intervals</span></span>
 <span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Refit model nsim=500 times</span></span>
-<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m1, <span class="at">FUN=</span>extract_model_logit_scale, <span class="at">nsim=</span><span class="dv">5</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m1, <span class="at">FUN=</span>extract_model_logit_scale, <span class="at">nsim=</span><span class="dv">500</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>================================================================================</code></pre>
 </div>
