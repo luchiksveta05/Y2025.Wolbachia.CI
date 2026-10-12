@@ -117,7 +117,24 @@ fit_ZIBinomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, f
 }
 
 # Extract estimates from a zero-inflated binomial model
-extract_model <- function(.){
+extract_model_logit_scale <- function(.){
+
+  ## Extract p1
+  logitp1 <- unlist(glmmTMB::fixef(.)$zi)
+  names(logitp1) <- paste0("zi.", names(logitp1))
+
+  ## Extract p2
+  logitp2 <- unlist(glmmTMB::fixef(.)$cond)
+  names(logitp2) <- paste0("cond.", names(logitp2))
+
+  vec <- c(logitp1, logitp2)
+
+  return(vec)
+}
+
+
+# Extract estimates from a zero-inflated binomial model
+extract_model <- function(., estimateCI=FALSE, estimate_hatche_rate=FALSE){
 
   ## Extract p1
   p1 <- unlist(1/(1+exp(-glmmTMB::fixef(.)$zi)))
@@ -127,6 +144,14 @@ extract_model <- function(.){
   p2 <- unlist(1/(1+exp(-glmmTMB::fixef(.)$cond)))
   names(p2) <- paste0("cond.", names(p2))
 
+if(estimate_hatche_rate) {
+  vec <- c(p1, p2, hatch_rate=(1-p1)*p2)
+  names(vec)[grepl("hatch_rate", names(vec))] <- gsub(".cond.", ".", names(vec)[grepl("hatch_rate", names(vec))], fixed = TRUE)
+}else{
+  vec <- c(p1, p2)
+}
+
+if(estimateCI){
   if(length(p2)>1){
     ## Reorder estimates
     CI_estimate <- 1-p2[2]/p2[c(1, 3, 4)]
@@ -134,24 +159,26 @@ extract_model <- function(.){
   }else{
     CI_estimate <- rep(0, 3)
   }
-  ## Add mean CI here?
+  ## Export results
   names(CI_estimate) <- c("TestCrossvs.CtrlCross1", "TestCrossvs.CtrlCross2", "TestCrossvs.CtrlCross3")
-  vec <- c(p1, p2, CI_estimate)
+  vec <- c(vec, CI_estimate)
+}
+
   return(vec)
 }
 
 #' Extract the likelihood from glmmTMB model
 #' @export
 #'
-# assignInNamespace(
-#   "logLik.glmmTMB",
-#   function(object, ...) {
-#     structure(
-#       -object$fit$objective,
-#       df   = as.integer(length(object$fit$par)),
-#       nobs = as.integer(nobs(object)),
-#       class = "logLik"
-#     )
-#   },
-#   ns = "glmmTMB"
-# )
+#assignInNamespace(
+#  "logLik.glmmTMB",
+#  function(object, ...) {
+#    structure(
+#      -object$fit$objective,
+#      df   = as.integer(length(object$fit$par)),
+#      nobs = as.integer(nobs(object)),
+#      class = "logLik"
+#    )
+#  },
+#  ns = "glmmTMB"
+#)

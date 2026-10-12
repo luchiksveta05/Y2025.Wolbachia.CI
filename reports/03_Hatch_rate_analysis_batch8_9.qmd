@@ -21,9 +21,13 @@ library(rlang)
 ## Batch 8 and 9
 ```{r}
 
-#Read database
+## Read dataset
 data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "raw_data", "Combined_dataset_Batch89_complete.csv"), sep=";", header = TRUE)) #753 rows
 
+## Compute hatch rate
+data <- data  |> 
+  dplyr::mutate(prop=LarvaeCount/EggCountCorr)
+    
 ## Convert into factor
 data <- data  |> 
   dplyr::mutate(CrossType = as.factor(CrossType)) |>
@@ -56,69 +60,28 @@ merged_data <- merged_data |>
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", row.names = FALSE)
 
 ```
-# Fit zero-inflated GLMM with Batch 8 and Batch 9 to estimate mean hatch rate and confidence intervals
 
-## Fit one zero-inflated model for all the data 
-```{r}
-library(rlang)
 
-#Load the data 
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", header = TRUE))
-
-# Fit m1 model for all the data in Batch8 and Batch9
-m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=merged_data, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-#glmmTMB::diagnose(fit=m1)
-summary(m1)
-
-#Estimation of hatch rate from binomial part of the model
-(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
-
-#Estimation of confidence intervals
-## Refit model nsim=500 times
-b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=500, .progress="txt")
-  
-##Confidence intervals estimation
-confint_F1 <- bCI_tab(b=b1)
-  
-##Extract data
-confintp2_F1 <- confint_F1[grepl("cond", rownames(confint_F1)),]
-  
-confintp2_F1 <- as.data.frame(confintp2_F1) |>
-  tibble::rownames_to_column(var = "type")
-
-## Export files for the table S4
-write.table(x = confintp2_F1, file=file.path(here::here(), "data", "derived_data", "confintp2_F1_F2_model_m1.csv"), sep=";", row.names = FALSE)
-
-```
-
-# Fit models to test genetic effects
-
+# Fit models to test genetic effects with betabinomial
+## Check structure of zero inflation
 ```{r, eval=TRUE}
-library (rlang)
 
-#Load the data 
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", header = TRUE))
-
-## Compute proportion of eggs that hatch into larvae
-merged_data$prop <- merged_data$sum_larvacount / merged_data$sum_eggcount_corr
-  
-## Subset the data with a single type of cross (87 rows)
+## Subset the data with a single type of cross (229 rows)
 strains <- c("Par6", "Bal", "F1 Par6xBal", "F1 BalxPar6", "F2 Par6xBalxPar6xBal", "F2 BalxPar6xBalxPar6")
 crosstype <- paste0("Amx", strains)
-dat_g <- merged_data[merged_data$CrossType%in%crosstype, ]
 
-## Export files
-write.table(x = dat_g, file=file.path(here::here(), "data", "derived_data", "CoupleID_test_cross.csv"), sep=";", row.names = FALSE)
-  
-## Variable to fit different variances for F2 vs. the other crosstypes
-dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
+dat_g <- data[data$CrossType%in%crosstype, ]
+
+
+## Compute proportion of eggs that hatch into larvae
+dat_g$prop <- dat_g$LarvaeCount / dat_g$EggCountCorr
 
 ## Levels of factor Crosstype
 levels(as.factor(dat_g$CrossType))
 
-## Variable for autosomal effect (Par6: -1, Bal: +1, F1/F2: 0)
+## Variable for autosomal effect (Par6: 1, Bal: -1, F1/F2: 0)
 dat_g$alpha1 <- as.factor(dat_g$CrossType)
-levels(dat_g$alpha1) <- c(1, 0, 0, 0, 0,-1) # alphabetical order
+levels(dat_g$alpha1) <- c(-1, 0, 0, 0, 0,+1) # alphabetical order
 dat_g$alpha1 <- as.numeric(as.character(dat_g$alpha1))
 
 ## Variable for dominance (Par6/Bal: 0, F1: +1, F2: 0.5)
@@ -126,98 +89,512 @@ dat_g$dominance <- as.factor(dat_g$CrossType)
 levels(dat_g$dominance) <- c(0, 1, 1, 0.5, 0.5, 0)
 dat_g$dominance <- as.numeric(as.character(dat_g$dominance))
 
-## Variable for cytoplasm (Par6 or Bal depending on the mother/grandmother)
-dat_g$cyto <- as.factor(dat_g$CrossType)
-levels(dat_g$cyto) <- c("Bal", "Bal", "Par6", "Bal",  "Par6", "Par6")
-
 ## Variable for X effect (Par6: -1, Bal: +1, F1: -1 (Par6 mother) or +1 (Bal mother), F2: 0)
 dat_g$X <- as.factor(dat_g$CrossType)
-levels(dat_g$X) <- c(1, 1, -1, 0, 0, -1)
+levels(dat_g$X) <- c(-1, -1, +1, 0, 0, +1)
 dat_g$X <- as.numeric(as.character(dat_g$X))
 
-## Variable for Y effect (Par6: -1, Bal: +1, F1: -1 (Par6 father) or +1 (Bal father), F2: -1 (Par6 grandfather) or +1 (Bal grandfather))
+## Variable for Y effect (Par6: +1, Bal: -1, F1: +1 (Par6 father) or -1 (Bal father), F2: +1 (Par6 grandfather) or -1 (Bal grandfather))
 dat_g$Y <- as.factor(dat_g$CrossType)
-levels(dat_g$Y) <- c("Bal", "Par6", "Bal", "Par6",  "Bal", "Par6")
+levels(dat_g$Y) <- c(-1, 1, -1, 1, -1, 1)
+dat_g$Y <- as.numeric(as.character(dat_g$Y))
 
+## Variable for cytoplasm (Par6 or Bal depending on the mother/grandmother) not used for the paper
+#dat_g$cyto <- as.factor(dat_g$CrossType)
+#levels(dat_g$cyto) <- c("Bal", "Bal", "Par6", "Bal",  "Par6", "Par6")
 
-## Fit saturated model (generation x cross direction)
-m0 <- glmmTMB::glmmTMB(prop ~  -1 + CrossType + (1| CoupleID) , data=dat_g, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m0)
-#glmmTMB::diagnose(m0)
+## Check the parameters for each type of cross
+unique(dat_g[, c("CrossType", "alpha1", "dominance", "X", "Y")])
 
-## Cytoplasmic effect (with CrossType In (function (start, objective, gradient = NULL, hessian = NULL,  : NA/NaN function evaluation)
-m1 <- glmmTMB::glmmTMB(prop ~ -1 + cyto + (1| CoupleID) , data=dat_g, ziformula=~  -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m1)
-#glmmTMB::diagnose(m1)
+## 40 zeros out of 229 Petri dishes
+## With 2–3 observations per couple, the data barely separate the random coupleID from the zero inflation (i.e. “this couple has a low mean” from “this couple had chance structural zeros”).
+z <- with(dat_g, tapply(prop == 0, CoupleID,
+                           function(v) paste0(sum(v), "/", length(v))))
+table(z)
 
-## Additive autosomal effect
-m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m2)
-#glmmTMB::diagnose(m2)
+msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~0, family = glmmTMB::betabinomial(), data = dat_g)
+summary(msat_betabin_nozi)
 
-## X effect (does not converge)
-m3 <- glmmTMB::glmmTMB(prop ~ X + (1 | CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m3)
-#glmmTMB::diagnose(m3)
+## Model with zero inflation
+msat_betabin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+c(negLL = msat_betabin_zi$fit$objective, pdHess = msat_betabin_zi$sdr$pdHess)
 
-## Cytoplasmic and additive autosomal effects
-m4 <- glmmTMB::glmmTMB(prop ~ alpha1 + cyto + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m4)
-#glmmTMB::diagnose(m4)
+msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1+CrossType, family = glmmTMB::betabinomial(), data = dat_g)
 
-## Autosomal additive and dominance effects
-m5 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m5)
-#glmmTMB::diagnose(m5)
+msat_bin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~0, family = binomial(), data = dat_g)
 
-## Cytoplasmic, additive autosomal and dominance autosomal effects
-m6 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + cyto + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m6)
-#glmmTMB::diagnose(m6)
+msat_bin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1, family = binomial(), data = dat_g)
 
-## Effect of X, additive autosomal and dominance autosomal effects
-m7 <- glmmTMB::glmmTMB(prop ~ alpha1 + X + dominance + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m7)
-#glmmTMB::diagnose(m7)
+msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1+CrossType, family = binomial(), data = dat_g)
 
-##Y effect, autosomal additive and dominance effects
-m8 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance +Y + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m8)
+MuMIn::AICc(msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType, msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType) 
 
-## Y effect, cytoplasmic, additive autosomal and dominance autosomal effects
-m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + cyto +Y + (1| CoupleID) , data=dat_g, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
-summary(m9) # Y effect is not identifiable, beccause difference in the reciprocal crosses could be due to the cytoplasmic effect or Y effect
-#glmmTMB::diagnose(m6)
+## Check convergence
+m <- msat_betabin_zi
+c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
 
-aic <- as.data.frame (MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7, m8))
+## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
+plogis(glmmTMB::fixef(m)$zi)          
+glmmTMB::VarCorr(m)
+
+so <- DHARMa::simulateResiduals(m, n = 1000)
+## Check that residuals are close to the diagonal
+plot(so)
+
+## No remaining zero inflation
+DHARMa::testZeroInflation(so)
+
+obs0 <- tapply(dat_g$prop == 0, dat_g$CrossType, sum)
+sim0 <- apply(so$simulatedResponse == 0, 2,
+             function(z) tapply(z, dat_g$CrossType, sum))
+cbind(observed = obs0,
+       expected = round(rowMeans(sim0), 1),
+       lo95     = apply(sim0, 1, quantile, 0.025),
+       hi95     = apply(sim0, 1, quantile, 0.975))
+
+## Cl: A model with a single zero inflation across cross types seems OK
+```
+
+## Model selection
+```{r, eval=TRUE}
+
+## List all models
+forms <- list(
+  m0   = prop ~ 1,
+  m1   = prop ~ alpha1 + dominance + X + Y,
+  m2   = prop ~ alpha1 + dominance + X,
+  m3   = prop ~ alpha1 + dominance + Y,
+  m4   = prop ~ alpha1 + X + Y,
+  m5   = prop ~ dominance + X + Y,
+  m6   = prop ~ alpha1 + X,
+  m7   = prop ~ alpha1 + Y,
+  m8   = prop ~ X + Y,
+  m9   = prop ~ alpha1 + dominance,
+  m10  = prop ~ dominance + X,
+  m11  = prop ~ dominance + Y,
+  m12  = prop ~ alpha1,
+  m13  = prop ~ dominance,
+  msat = prop ~ CrossType
+)
+
+## Fit models
+mods <- lapply(forms, function(f)
+  glmmTMB::glmmTMB(update(f, cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ . + (1 | CoupleID)),
+                   ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g))
+
+## Only m0 and m11 have convergence issues
+t(sapply(mods, function(m) c(negLL = m$fit$objective,
+                             conv = m$fit$convergence, pdHess = m$sdr$pdHess)))
+
+## Compare AICc
+#MuMIn::model.sel(mods[names(mods) != "msat"])
+MuMIn::model.sel(mods)
+
+## Check lack of fit
+anova(mods$m1, mods$msat)
+## Cl: The four genetic effects describe the six cross-type means almost perfectly, so the genetic model is an adequate description of the six types of crosses.
+
+aic <- as.data.frame (MuMIn::model.sel(mods))
 
 write.csv(
   tibble::rownames_to_column(as.data.frame(aic), "model"),
-  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_Y.csv"),
+  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_X_Y.csv"),
   row.names = FALSE
 )
 
-#Prediction of hatch rate depending on the proportion of Bal genes in the genome (?)
-newdata <- expand.grid(alpha1 = c(-1, 0, 1), dominance = -1, sum_eggcount_corr=100)
-newdata$prop_Bal <- (newdata$alpha1 + 1)/2
 
-## Add CrossType otherwise the prediction does not work
-newdata$CrossType <- "AmxBal"
-newdata$pred.cond <- predict(m5, type="conditional", re.form=NA, newdata=newdata)
 
 ```
 
-# Plot hatch rate data
+
+# Fit models to test genetic effects with betabinomial with aggregate data
+## Check structure of zero inflation
+```{r, eval=FALSE}
+#Load the data 
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", header = TRUE))
+
+## Compute proportion of eggs that hatch into larvae
+merged_data$prop <- merged_data$sum_larvacount / merged_data$sum_eggcount_corr
+  
+## Subset the data with a single type of cross (229 rows)
+strains <- c("Par6", "Bal", "F1 Par6xBal", "F1 BalxPar6", "F2 Par6xBalxPar6xBal", "F2 BalxPar6xBalxPar6")
+crosstype <- paste0("Amx", strains)
+
+dat_g <- merged_data[merged_data$CrossType%in%crosstype, ]
+
+
+## Compute proportion of eggs that hatch into larvae
+dat_g$prop <- dat_g$sum_larvacount / dat_g$sum_eggcount_corr
+  
+## Variable to fit different variances for F2 vs. the other crosstypes
+dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
+
+## Levels of factor Crosstype
+levels(as.factor(dat_g$CrossType))
+
+## Variable for autosomal effect (Par6: 1, Bal: -1, F1/F2: 0)
+dat_g$alpha1 <- as.factor(dat_g$CrossType)
+levels(dat_g$alpha1) <- c(-1, 0, 0, 0, 0,+1) # alphabetical order
+dat_g$alpha1 <- as.numeric(as.character(dat_g$alpha1))
+
+## Variable for dominance (Par6/Bal: 0, F1: +1, F2: 0.5)
+dat_g$dominance <- as.factor(dat_g$CrossType)
+levels(dat_g$dominance) <- c(0, 1, 1, 0.5, 0.5, 0)
+dat_g$dominance <- as.numeric(as.character(dat_g$dominance))
+
+## Variable for X effect (Par6: -1, Bal: +1, F1: -1 (Par6 mother) or +1 (Bal mother), F2: 0)
+dat_g$X <- as.factor(dat_g$CrossType)
+levels(dat_g$X) <- c(-1, -1, +1, 0, 0, +1)
+dat_g$X <- as.numeric(as.character(dat_g$X))
+
+## Variable for Y effect (Par6: +1, Bal: -1, F1: +1 (Par6 father) or -1 (Bal father), F2: +1 (Par6 grandfather) or -1 (Bal grandfather))
+dat_g$Y <- as.factor(dat_g$CrossType)
+levels(dat_g$Y) <- c(-1, 1, -1, 1, -1, 1)
+dat_g$Y <- as.numeric(as.character(dat_g$Y))
+
+## Variable for cytoplasm (Par6 or Bal depending on the mother/grandmother) not used for the paper
+#dat_g$cyto <- as.factor(dat_g$CrossType)
+#levels(dat_g$cyto) <- c("Bal", "Bal", "Par6", "Bal",  "Par6", "Par6")
+
+## Check the parameters for each type of cross
+unique(dat_g[, c("CrossType", "alpha1", "dominance", "X", "Y")])
+
+
+msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~0, family = glmmTMB::betabinomial(), data = dat_g)
+summary(msat_betabin_nozi)
+
+## Model with zero inflation
+msat_betabin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+c(negLL = msat_betabin_nozi$fit$objective, pdHess = msat_betabin_nozi$sdr$pdHess)
+
+
+msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1+CrossType, family = glmmTMB::betabinomial(), data = dat_g)
+
+msat_bin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~0, family = binomial(), data = dat_g)
+
+msat_bin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1, family = binomial(), data = dat_g)
+
+msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+                            ziformula = ~1+CrossType, family = binomial(), data = dat_g)
+
+MuMIn::AICc(msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType, msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType) 
+
+## Residuals of msat_bin_zi not OK, so model with betabinomial used for model selection
+plot(DHARMa::simulateResiduals(msat_bin_zi, n = 1000))
+
+## Check convergence
+m <- msat_betabin_zi
+c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
+
+## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
+plogis(glmmTMB::fixef(m)$zi)          
+glmmTMB::VarCorr(m)
+
+so <- DHARMa::simulateResiduals(m, n = 1000)
+## Check that residuals are close to the diagonal
+plot(so)
+
+## No remaining zero inflation
+DHARMa::testZeroInflation(so)
+
+obs0 <- tapply(dat_g$prop == 0, dat_g$CrossType, sum)
+sim0 <- apply(so$simulatedResponse == 0, 2,
+             function(z) tapply(z, dat_g$CrossType, sum))
+cbind(observed = obs0,
+       expected = round(rowMeans(sim0), 1),
+       lo95     = apply(sim0, 1, quantile, 0.025),
+       hi95     = apply(sim0, 1, quantile, 0.975))
+
+## Cl: A model with a single zero inflation across cross types seems OK
+```
+
+## Model selection
+```{r, eval=FALSE}
+
+## List all models
+forms <- list(
+  m0   = prop ~ 1,
+  m1   = prop ~ alpha1 + dominance + X + Y,
+  m2   = prop ~ alpha1 + dominance + X,
+  m3   = prop ~ alpha1 + dominance + Y,
+  m4   = prop ~ alpha1 + X + Y,
+  m5   = prop ~ dominance + X + Y,
+  m6   = prop ~ alpha1 + X,
+  m7   = prop ~ alpha1 + Y,
+  m8   = prop ~ X + Y,
+  m9   = prop ~ alpha1 + dominance,
+  m10  = prop ~ dominance + X,
+  m11  = prop ~ dominance + Y,
+  m12  = prop ~ alpha1,
+  m13  = prop ~ dominance,
+  msat = prop ~ CrossType
+)
+
+## Fit models
+mods <- lapply(forms, function(f)
+  glmmTMB::glmmTMB(update(f, cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ . + (1 | CoupleID)),
+                   ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g))
+## No convergence issue
+t(sapply(mods, function(m) c(negLL = m$fit$objective,
+                             conv = m$fit$convergence, pdHess = m$sdr$pdHess)))
+
+## Compare AICc
+MuMIn::model.sel(mods[names(mods) != "msat"])
+
+## Check lack of fit
+anova(mods$m1, mods$msat)
+## Cl: The four genetic effects describe the six cross-type means almost perfectly, so the genetic model is an adequate description of the six types of crosses.
+
+aic <- as.data.frame (MuMIn::model.sel(mods[names(mods) != "msat"]))
+
+#write.csv(
+#  tibble::rownames_to_column(as.data.frame(aic), "model"),
+#  file = file.path(here::here(), "data", "derived_data", #"AICc_genetic_effect_F1_F2_X_Y.csv"),
+#  row.names = FALSE
+#)
+
+m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = sum_eggcount_corr)
+logLik(m9)
+
+#Prediction of hatch rate depending on the proportion of Par6 alleles in the genome
+newdata <- expand.grid(alpha1 = c(-1, 0, 1), dominance = -1, sum_eggcount_corr=100)
+newdata$prop_Par6 <- (newdata$alpha1 + 1)/2
+newdata$pred.cond <- predict(m9, type="conditional", re.form=NA, newdata=newdata)
+
+```
+
+
+# Castle-Wright estimation
+## Check that the variance is homogenous in parental and F1 crosses
+```{r, eval=TRUE}
+dat_g$vgroup4 <- factor(ifelse(grepl("F2", dat_g$CrossType), "F2",
+                        ifelse(grepl("F1", dat_g$CrossType), "F1",
+                               sub("Amx", "", dat_g$CrossType))))   # Bal, Par6, F1, F2
+
+## Model with a different variance only for parents, F1s and F2s
+m_var4 <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vgroup4 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+
+glmmTMB::VarCorr(m_var4)            # between-male variance for Bal, Par6, F1, F2
+
+
+## Variable to fit different variances for F2 vs. the other crosstypes
+dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
+
+## Model with a different variance only for F2s vs. the other crosstypes
+m_var <- glmmTMB::glmmTMB(
+  cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vargroup | CoupleID),
+  ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+summary(m_var)
+
+## No significant differences between variances in the parents and F1 so we can estimate a sigle parameter
+anova(m_var, m_var4)
+
+## F2 variance is not significantly larger (but low power as only 29 F2 crosses)
+anova(update(m_var, . ~ CrossType + (1 | CoupleID)), m_var)
+
+```
+
+## Compute estimates
 ```{r, eval=TRUE}
 
+vc   <- glmmTMB::VarCorr(m_var)$cond$CoupleID
+s2E  <- vc["vargroup0", "vargroup0"]          # between-male variance, non-F2 groups
+s2F2 <- vc["vargroup1", "vargroup1"]          # between-male variance, F2
+b    <- glmmTMB::fixef(m_var)$cond            # check names with names(b)
+delta <- (b["(Intercept)"]) - (b["(Intercept)"] + b["CrossTypeAmxPar6"])   # Bal - Par6 (Bal = reference)
+
+s2S <- s2F2 - s2E
+n_e <- delta^2 / (8 * s2S)
+c(s2E = s2E, s2F2 = s2F2, s2S = s2S, n_e = n_e)
+```
+
+
+## Plotting the F2 male random effects (BLUPS) against the Bal and F1 means
+```{r, eval=TRUE}
+## Order of the male genotypes on the plot
+ord <- c("AmxBal", "AmxF1 Par6xBal", "AmxF1 BalxPar6",
+         "AmxF2 Par6xBalxPar6xBal", "AmxF2 BalxPar6xBalxPar6", "AmxPar6")
+
+# One row per male (couple)
+males <- unique(dat_g[, c("CoupleID", "CrossType", "vargroup")])
+
+# Model-based male hatch rate: cross-type mean + couple effect, excluding structural zeros
+males$pred <- predict(m_var, newdata = males, type = "conditional", re.form = NULL)
+
+# Raw male hatch rate (pooled over his dishes), for comparison
+raw <- aggregate(cbind(LarvaeCount, EggCountCorr) ~ CoupleID, data = dat_g, FUN = sum)
+males <- merge(males, raw, by = "CoupleID")
+males$raw <- males$LarvaeCount / males$EggCountCorr
+
+# Cross-type means with 95% CI (population level)
+ct <- data.frame(CrossType = ord, CoupleID = NA,
+                 vargroup = factor(as.integer(grepl("F2", ord))))
+p  <- predict(m_var, newdata = ct, type = "link", re.form = NA, se.fit = TRUE)
+ct$fit <- plogis(p$fit)
+ct$lo  <- plogis(p$fit - 1.96 * p$se.fit)
+ct$hi  <- plogis(p$fit + 1.96 * p$se.fit)
+
+ref <- ct[ct$CrossType %in% c("AmxBal", "AmxPar6"), ]
+ref$lab <- sub("Amx", "", ref$CrossType)
+ref$ylab <- ref$fit + ifelse(ref$lab == "Bal", 0.13, 0)   # raise Bal label only
+#ref$xlab  <- ifelse(ref$lab == "Bal", 0.6, 6.4)
+#ref$hjust <- ifelse(ref$lab == "Bal", 0, 1)
+
+males$CrossType <- factor(males$CrossType, levels = ord)
+ct$CrossType    <- factor(ct$CrossType,    levels = ord)
+males$Generation <- ifelse(grepl("F2", males$CrossType), "F2",
+                    ifelse(grepl("F1", males$CrossType), "F1", "Parental"))
+
+p <- ggplot(males, aes(x = CrossType, y = pred)) +
+  geom_hline(data = ref, aes(yintercept = fit), linetype = "dashed", colour = "grey40") +
+  geom_jitter(aes(colour = Generation), width = 0.12, height = 0, size = 2.2, alpha = 0.75) +
+  geom_pointrange(data = ct, aes(y = fit, ymin = lo, ymax = hi),
+                  position = position_nudge(x = 0.3), size = 0.4) +
+  geom_label(data = ref, aes(x = 0.6, y = ylab, label = lab),
+             hjust = 0, vjust = -0.3, size = 3.5, colour = "grey30",
+             fill = "white", label.size = 0, label.padding = unit(0.1, "lines")) +
+  scale_x_discrete(labels = function(x) sub("Amx", "", x)) +
+  scale_y_continuous("Hatch rate excluding structural zeros", limits = c(0, 1)) +
+  scale_colour_manual(values = c(Parental = "grey50", F1 = "#1b9e77", F2 = "#d95f02")) +
+  labs(x = "Male genotype", colour = NULL) +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "top")
+#save bar plot
+title_plot <- "BLUPS_Par6_Bal_F1_F2.png"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   p, base_height = 12/cm(1),
+                   base_width = 10/cm(1), dpi = 1200)
+```
+
+## Simulations to check how environmental variation affect the position of F2 relative to the parents
+```{r}
+f2 <- males[grepl("F2", males$CrossType), ]
+lp <- qlogis(f2$pred)
+
+centres <- qlogis(c(
+  Bal  = ct$fit[ct$CrossType == "AmxBal"],
+  F1   = mean(ct$fit[grepl("F1", ct$CrossType)]),
+  Par6 = ct$fit[ct$CrossType == "AmxPar6"]))
+
+f2$class <- factor(names(centres)[apply(abs(outer(lp, centres, "-")), 1, which.min)],
+                   levels = c("Bal", "F1", "Par6"))
+obs <- table(f2$class)
+obs
+
+# 1:2:1 (one locus, incomplete dominance)
+chisq.test(obs, p = c(1, 2, 1) / 4, simulate.p.value = TRUE, B = 1e4)
+# Two equal loci, additive (extremes 1/16 each)
+chisq.test(obs, p = c(1, 14, 1) / 16, simulate.p.value = TRUE, B = 1e4)
+
+
+mid <- mean(centres[c("Bal", "Par6")])
+a   <- unname((centres["Bal"] - centres["Par6"]) / 2)
+d   <- unname(centres["F1"] - mid)
+
+sim_props <- function(nloci, sd_e = 0.46, n = 1e5) {
+  x <- matrix(sample(c(-1, 0, 1), n * nloci, TRUE, c(0.25, 0.5, 0.25)), n)   # F2 genotypes per locus
+  g <- mid + a * rowMeans(x) + d * rowMeans(x == 0)   # equal-effect loci, same dominance ratio
+  y <- g + rnorm(n, 0, sd_e)
+  cls <- factor(names(centres)[apply(abs(outer(y, centres, "-")), 1, which.min)],
+                levels = names(centres))
+  as.numeric(prop.table(table(cls)))
+}
+
+set.seed(1)
+props <- sapply(1:4, sim_props)
+colnames(props) <- paste(1:4, "loci"); rownames(props) <- names(centres)
+round(props * sum(obs), 1)          # expected counts out of 30 under each hypothesis
+
+sapply(1:4, function(k) chisq.test(obs, p = props[, k],
+                                   simulate.p.value = TRUE, B = 1e4)$p.value)
+```
+
+# Prediction for the different types of crosses
+## Fit saturated for Table S7 and Fig. 5
+```{r}
+library(rlang)
+
+# Fit msat model for all the data in Batch8 and Batch9
+msat <- glmmTMB::glmmTMB(prop ~ -1 + CrossType + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = data, weights = EggCountCorr)
+summary(msat)
+
+#Estimation of hatch rate from binomial part of the model
+(p2 <- 1/(1+exp(-glmmTMB::fixef(msat)$cond)))
+
+#Estimation of confidence intervals
+## Refit model nsim=500 times
+b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimateCI = FALSE, estimate_hatche_rate=TRUE), nsim=5, .progress="txt")
+
+##Confidence intervals estimation
+confint_msat <- data.frame(bCI_tab(b=b1)) |>
+  tibble::rownames_to_column(var = "CrossType")
+
+## Export files for the Table S7
+write.table(x = confint_msat, file=file.path(here::here(), "data", "derived_data", "confint_saturated_model_msat.csv"), sep=";", row.names = FALSE)
+
+```
+
+## Full model m1 for Table S7
+```{r}
+library(rlang)
+
+# Fit m1 model for all the data in Batch8 and Batch9
+m1 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + X + Y + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = EggCountCorr)
+summary(m1)
+
+
+#Estimation of hatch rate from binomial part of the model
+(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
+
+#Estimation of confidence intervals
+## Refit model nsim=500 times
+b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=5, .progress="txt")
+
+##Confidence intervals estimation
+confint_full_model <- data.frame(bCI_tab(b=b1))
+
+confint_full_model <- confint_full_model |>
+  tibble::rownames_to_column(var = "Effects")
+
+## Export files for the table S7
+write.table(x = confint_full_model, file=file.path(here::here(), "data", "derived_data", "confint_full_model_m1.csv"), sep=";", row.names = FALSE)
+
+```
+
+## Best model estimates
+```{r, eval=FALSE}
+
+#Prediction of hatch rate depending on the proportion of Par6 alleles in the genome
+newdata <- data.frame(CrossType=c("AmxBal", "AmxF1 BalxPar6", "AmxF1 Par6xBal", "AmxF2 BalxPar6xBalxPar6", "F2 Par6xBalxPar6xBal", "AmxPar6"), alpha1 = c(-1, 0, 0, 0, 0, 1), dominance=c(0, 1, 1, 0.5, 0.5, 1), EggCountCorr=100)
+
+newdata$prop_Par6 <- (newdata$alpha1 + 1)/2
+newdata$pred.cond <- predict(m9, type="conditional", re.form=NA, newdata=newdata)
+
+```
+
+
+# Make plot
+```{r, eval=FALSE}
+
 ## Read data
-data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2_F1_F2.csv"), sep=";", header = TRUE))
+data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confint_saturated_model_msat.csv"), sep=";", header = TRUE))
 
 head(data)
 
 #Make column with CrossType
 data <- data |>
-dplyr::mutate(CrossType = sub(".*CrossType", "", type))
+dplyr::mutate(CrossType = sub(".*CrossType", "", Type))
 
 data <- data |>
 dplyr::distinct(CrossType, .keep_all = TRUE)
@@ -249,9 +626,9 @@ strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
 dat_p <- merged_data_p[merged_data_p$CrossType%in%crosstype, ]
 
-#Define variable for autosomal effect (Par6: -1, Bal:1)
+#Define variable for autosomal effect (Par6: 1, Bal:-1)
 dat_p$alpha1 <- as.factor(dat_p$CrossType)
-levels(dat_p$alpha1) <- c(1, -1) # alphabetical order
+levels(dat_p$alpha1) <- c(-1, +1) # alphabetical order
 dat_p$alpha1 <- as.numeric(as.character(dat_p$alpha1))
 
 m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_p, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
@@ -259,8 +636,8 @@ summary(m2)
 glmmTMB::diagnose(m2)
 
 newdata <- expand.grid(alpha1 = c(-1, 0, 1), dominance = -1, sum_eggcount_corr=100)
-newdata$prop_Bal <- (newdata$alpha1 + 1)/2
-newdata$prop_Par6 <- 1-newdata$prop_Bal
+newdata$prop_Par6<- (newdata$alpha1 + 1)/2
+newdata$prop_Bal <- 1-newdata$prop_Par6
 
 ## Add CrossType
 newdata$CrossType <- "AmxBal"
@@ -279,7 +656,7 @@ dat_couple$Strain_label <- dplyr::recode(
   "F2 BalxPar6xBalxPar6" = "F2 (BalxPar6)x(BalxPar6)"
 )
 
-#Change proportion of Bal genes for the figure
+#Change proportion of Par6 alleles for the figure
 dat_couple <- dat_couple |>
   dplyr::mutate(
     prop_Bal = dplyr::case_when(
@@ -309,7 +686,7 @@ dat <- dat |>
 
 dat$prop_Par6 <- 1-dat$prop_Bal
 
-#Make columns for coordinates of labeles in the plot 
+#Make columns for coordinates of labels in the plot 
 dat <- dat |>
   dplyr::mutate(
     label_x = dplyr::case_when(
@@ -341,7 +718,7 @@ pBal <- ggplot() +
   geom_line(data = newdata, aes(x = prop_Par6, y = pred.cond), color = "black", linewidth = 1.5) +
   scale_color_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
-  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", color = "Male strain") +
+  labs(x = "Proportion of Par6 suppressor allele(s)", y = "Hatch rate in test cross", color = "Male strain") +
   theme(plot.title = element_text(size = 90, face = "bold", hjust = 0.5, margin = margin(b = 60)), plot.margin = margin(t = 120, r = 90, b = 120, l = 120), axis.text = element_text(size = 75), axis.title = element_text(size = 90, face = "bold"), axis.title.x = element_text(margin = margin(t = 60)), axis.title.y = element_text(margin = margin(r = 60)), legend.position = "none")
 
 
@@ -352,18 +729,18 @@ cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal, base_height = 30/cm(1),
                    base_width = 40/cm(1), dpi = 1200)
 ```
-# Plot mortality data
 
-```{r, eval=TRUE}
+# Plot embryo mortality
+```{r, eval=FALSE}
 
 ## Read data
-data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2_F1_F2_model_m1.csv"), sep=";", header = TRUE))
+data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confint_saturated_model_msat.csv"), sep=";", header = TRUE))
 
 head(data)
 
 #Make column with CrossType
 data <- data |>
-dplyr::mutate(CrossType = sub(".*CrossType", "", type))
+dplyr::mutate(CrossType = sub(".*CrossType", "", Type))
 
 
 data <- data |>
@@ -405,9 +782,9 @@ strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
 dat_p <- merged_data_p[merged_data_p$CrossType%in%crosstype, ]
 
-#Define variable for autosomal effect (Par6: -1, Bal:1)
+#Define variable for autosomal effect (Par6: 1, Bal:-1)
 dat_p$alpha1 <- as.factor(dat_p$CrossType)
-levels(dat_p$alpha1) <- c(1, -1) # alphabetical order
+levels(dat_p$alpha1) <- c(-1, +1) # alphabetical order
 dat_p$alpha1 <- as.numeric(as.character(dat_p$alpha1))
 
 m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_p, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
@@ -509,7 +886,7 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 ```
 
 ## Plot for embryo mortality for only parental lines Par6 / Bal (for presentation)
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 
 ## Select only data for parental lines
 dat1<- dat |>
@@ -540,7 +917,7 @@ cowplot::save_plot(file = here::here("plots", title_plot),
 ```
 
 ## Plot for embryo mortality for parental lines and F1 generation Par6 / Bal (for presentation)
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 
 
 ## Select only data for parental lines
@@ -570,8 +947,8 @@ cowplot::save_plot(file = here::here("plots", title_plot),
                    pBal, base_height = 30/cm(1),
                    base_width = 40/cm(1), dpi = 1200)
 ```
-# Plot predicted hatch rate for different genetic models
 
+# Plot predicted hatch rate for different genetic models
 ## Plot for predicted F1 and F2 with cytoplasmic effect Par6 / Bal
 ```{r, eval=FALSE}
 
@@ -582,9 +959,9 @@ strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
 dat_p <- merged_data_p[merged_data_p$CrossType%in%crosstype, ]
 
-#Define variable for autosomal effect (Par6: -1, Bal:1)
+#Define variable for autosomal effect (Par6: 1, Bal:-1)
 dat_p$alpha1 <- as.factor(dat_p$CrossType)
-levels(dat_p$alpha1) <- c(1, -1) # alphabetical order
+levels(dat_p$alpha1) <- c(-1, +1) # alphabetical order
 dat_p$alpha1 <- as.numeric(as.character(dat_p$alpha1))
 
 m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_p, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
@@ -601,11 +978,11 @@ newdata$pred.cond <- predict(m2, type="conditional", re.form=NA, newdata=newdata
 
 # Make database and add proportion of Bal and Par6 genes
 ## Read data
-data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2_F1_F2.csv"), sep=";", header = TRUE))
+data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confint_saturated_model_msat.csv"), sep=";", header = TRUE))
 
 #Make column with CrossType
 data <- data |>
-dplyr::mutate(CrossType = sub(".*CrossType", "", type))
+dplyr::mutate(CrossType = sub(".*CrossType", "", Type))
 
 data <- data |>
 dplyr::distinct(CrossType, .keep_all = TRUE)
@@ -691,7 +1068,7 @@ pBal1 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Cytoplasmic effect") +
+  labs(x = "Proportion of Par6 suppressor allele(s)", y = "Hatch rate in test cross", title = "Cytoplasmic effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -810,7 +1187,7 @@ pBal2 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "Dominant effect") +
+  labs(x = "Proportion of Par6 suppressor allele(s)", y = "Hatch rate in test cross", title = "Dominant effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -916,7 +1293,7 @@ pBal3 <- ggplot() +
   scale_fill_manual(values = c("Par6" = "violet", "Bal" = "#F8766D", "F1 Par6xBal" = "#00B6EB", "F1 BalxPar6" = "#00C094", "F2 (Par6xBal)x(Par6xBal)" = "#53B400", "F2 (BalxPar6)x(BalxPar6)" = "#A58AFF")) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of supressor allele(s)", y = "Hatch rate in test cross", title = "X-linked effect") +
+  labs(x = "Proportion of Par6 suppressor allele(s)", y = "Hatch rate in test cross", title = "X-linked effect") +
   annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
   coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
@@ -977,7 +1354,7 @@ pBal3_clean <- pBal3 + labs(x = " ", y = " ") + theme(plot.margin = margin(0, 40
 
 top_core <- cowplot::plot_grid(pBal1_clean, pBal2_clean, pBal3_clean, nrow = 1, labels = c("A", "B", "C"), label_size = 60, label_fontface = "bold")
 
-top_plot <- cowplot::ggdraw() + cowplot::draw_plot(top_core, x = 0, y = 0, width = 1, height = 1) + cowplot::draw_label("Hatch rate in test cross", x = 0.025, y = 0.55, angle = 90, size = 50, fontface = "bold", colour = "black") + cowplot::draw_label("Proportion of supressor allele(s)", x = 0.53, y = 0.04, size = 50, fontface = "bold", colour = "black")
+top_plot <- cowplot::ggdraw() + cowplot::draw_plot(top_core, x = 0, y = 0, width = 1, height = 1) + cowplot::draw_label("Hatch rate in test cross", x = 0.025, y = 0.55, angle = 90, size = 50, fontface = "bold", colour = "black") + cowplot::draw_label("Proportion of Par6 suppressor allele(s)", x = 0.53, y = 0.04, size = 50, fontface = "bold", colour = "black")
 
 bottom_plot <- cowplot::plot_grid(pBal, labels = "D", label_size = 60, label_fontface = "bold")
 
@@ -1004,9 +1381,9 @@ strains <- c("Par6", "Bal")
 crosstype <- paste0("Amx", strains)
 dat_p <- merged_data_p[merged_data_p$CrossType%in%crosstype, ]
 
-#Define variable for autosomal effect (Par6: -1, Bal:1)
+#Define variable for autosomal effect (Par6: 1, Bal:-1)
 dat_p$alpha1 <- as.factor(dat_p$CrossType)
-levels(dat_p$alpha1) <- c(1, -1) # alphabetical order
+levels(dat_p$alpha1) <- c(-1, +1) # alphabetical order
 dat_p$alpha1 <- as.numeric(as.character(dat_p$alpha1))
 
 m2 <- glmmTMB::glmmTMB(prop ~ alpha1 + (1 | CoupleID) , data=dat_p, ziformula=~ -1+ CrossType , family=binomial, weight=sum_eggcount_corr)
