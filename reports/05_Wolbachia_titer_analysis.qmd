@@ -76,88 +76,91 @@ data_mean <- data_mean |>
   dplyr::left_join(data1 |> dplyr::distinct(Strain, CI), by = "Strain")
   
  ## Export file with mean titer and confidence intervals values
-write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", "Mean_titer.csv"), sep=";", row.names = FALSE) 
+write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", "Mean_titer.csv"), sep=";", row.names = FALSE)
+
+```
+                      
+# Difference between four lines naturallu infected with Wolbachia
+```{r}
+
+#Filter only naturally infected lines
+data2 <- data1 |>
+  dplyr::filter(Strain %in% c("Bal", "Trento", "Par6","Rennes"))
+
+## Overall difference among lines
+m <- lm(log10(Titer) ~ Strain, data = data2)
+anova(m)
+
+## Check model assumptions
+par(mfrow = c(2,2)); plot(m); par(mfrow = c(1,1))
+
+p_diag <- ggplotify::as.ggplot(function() {
+  graphics::par(mfrow = c(2, 2))
+  graphics::plot(m)
+})
+
+cowplot::save_plot(file = here::here("plots", "model_diagnostics_titers.pdf"),
+                   p_diag, base_height = 13.5/cm(1),
+                   base_width = 16/cm(1), dpi = 1200)
+
+## Pairwise comparisons, back-transformed to fold differences
+
+library(emmeans)
+em <- emmeans(m, ~ Strain, type = "response")
+em
+pw <- pairs(em, adjust = "tukey")
+tab_pw <- merge(as.data.frame(summary(pw)),
+                as.data.frame(confint(pw))[, c("contrast", "lower.CL", "upper.CL")],
+                by = "contrast", sort = FALSE)
+
+write.csv2(tab_pw, here::here("data", "derived_data", "titer_pairwise.csv"), row.names = FALSE)
 
 ```
                       
 # Figure with titers for Europe
 ```{r}
   
-# Plot titer
-ggplot(data1, aes(x = Strain, y = Titer)) +
-  geom_boxplot(outlier.shape = 16, outlier.size = 1.5) +
-  #facet_wrap(~Strain, scales = "free_y") +
-  #scale_fill_manual(values = c("18°C" = "blue", "25°C" = "red")) +
-  #scale_y_log10() +  # Log scale for better visualization
-  labs(y = "Wolbachia titer") +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    legend.title = element_blank(),
-    legend.position = "right"
-  )
 
-# Plot titer for the Figure 3
+# add information about CI level
 
-data1 <-data1|>
-  dplyr::filter (Strain %in% c("Trento", "Bal", "Par6", "Rennes")) |>
-  dplyr::mutate(data1, CI_strength = c(Trento = 0.47, Bal = 0.74,
+data2 <-data2|>
+  dplyr::mutate(CI_strength = c(Trento = 0.47, Bal = 0.74,
                                        Par6 = 0, Rennes = 0)[Strain])
 
-p <- ggplot(data1, aes(x = Strain, y = Titer, fill= CI)) +
-  geom_boxplot(width = 0.55, outlier.shape = NA, colour = "grey30", linewidth = 0.4) +
-  scale_fill_manual(values = c("CI" = "sienna1", "no CI" = "yellow"), name = NULL) +
-  geom_jitter(width = 0.14, height = 0, size = 1.8,
-              shape = 21, fill = "grey30", colour = "white", stroke = 0.3,
-              alpha = 0.85) +
-  stat_summary(fun = median, geom = "crossbar", width = 0.55,
-               linewidth = 0.4, colour = "black") +
-  #geom_text(data = ci_lab, aes(x = Strain, y = Inf, label = label),
-           # vjust = 1.6, size = 3, colour = "grey25", inherit.aes = FALSE) +
-  labs(x = NULL, y = "Wolbachia titer in testes") +
-  theme_classic(base_size = 11) +
-  theme(
-    axis.line   = element_line(linewidth = 0.4),
-    axis.ticks  = element_line(linewidth = 0.4),
-    axis.text.x = element_text(face = "bold"),
-    plot.margin = margin(10, 10, 6, 6)
-    )
+#Add labels with CI estimate
+labs_x <- with(unique(data2[, c("Strain", "CI_strength")]),
+               setNames(sprintf("%s\n(%d%%)", Strain, round(CI_strength * 100)), Strain))
 
-p
-#Save the plot
-title_plot <- "Fig_3_titers_boxplot.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   p, base_height = 13.5/cm(1),
-                   base_width = 16/cm(1), dpi = 1200)
+##Plot Fig S3
 
-##Plot
-
-p <- ggplot(data1, aes(x = Strain, y = Titer, colour = CI_strength)) +
-  geom_jitter(width = 0.12, height = 0, size = 3, alpha = 0.7) +
-  stat_summary(fun = mean, geom = "point", size = 4.5, shape = 16) +
+p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
+  geom_jitter(width = 0.12, height = 0, size = 4, alpha = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 6, shape = 16) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",
                width = 0.12, linewidth = 0.5) +
-  scale_colour_viridis_c(option = "plasma", end = 0.9,
-                         limits = c(0, 0.8),
-                         labels = scales::percent_format(accuracy = 1),
-                         name = "CI strength") +
+  ggsignif::geom_signif(comparisons = list(c("Trento","Bal"), c("Trento","Par6")),
+                        annotations = c("*","*"),
+                        y_position = c(100, 110),
+                        textsize = 6, colour = "black") +
+  scale_colour_manual(values = c("CI" = "#DD3497", "no CI" = "#54278F"),
+                      name = NULL) +
+  scale_x_discrete(labels = labs_x) +
   labs(x = NULL, y = expression(italic("Wolbachia")~"titer in testes")) +
-  theme_classic(base_size = 11) +
+  theme_classic(base_size = 13) +
   theme(
     axis.line            = element_line(linewidth = 0.4),
     axis.ticks           = element_line(linewidth = 0.4),
-    axis.text.x          = element_text(face = "bold"),
-    legend.position      = c(0.97, 0.97),
+    axis.title.y         = element_text(size = 16),
+    axis.text            = element_text(size = 14, colour = "black"),
+    axis.text.x          = element_text(size = 15, face = "bold", colour = "black"),
+    legend.position      = c(0.99, 0.99),
     legend.justification = c(1, 1),
-    legend.direction     = "horizontal",
     legend.background    = element_blank(),
-    legend.title         = element_text(size = 8),
-    legend.text          = element_text(size = 7),
-    legend.key.width     = unit(12, "mm"),
-    legend.key.height    = unit(3, "mm"),
+    legend.text          = element_text(size = 12),
     plot.margin          = margin(6, 8, 6, 6)
   )
 p
+
 
 #Save the plot
 title_plot <- "Fig_3_titers3.pdf"
