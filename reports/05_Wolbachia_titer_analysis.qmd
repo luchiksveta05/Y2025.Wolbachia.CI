@@ -74,6 +74,10 @@ data_mean <-  data1 |>
 
 data_mean <- data_mean |>
   dplyr::left_join(data1 |> dplyr::distinct(Strain, CI), by = "Strain")
+
+#Add mean titer to the database
+data1 <- data1 |>
+  dplyr::left_join(data_mean %>% dplyr::select(Strain, mean_titer, ci_low, ci_high), by = "Strain")
   
  ## Export file with mean titer and confidence intervals values
 write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", "Mean_titer.csv"), sep=";", row.names = FALSE)
@@ -131,13 +135,13 @@ data2 <-data2|>
 labs_x <- with(unique(data2[, c("Strain", "CI_strength")]),
                setNames(sprintf("%s\n(%d%%)", Strain, round(CI_strength * 100)), Strain))
 
-##Plot Fig S3
+##Plot Fig 3
 
 p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
   geom_jitter(width = 0.12, height = 0, size = 4, alpha = 0.5) +
-  stat_summary(fun = mean, geom = "point", size = 6, shape = 16) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",
-               width = 0.12, linewidth = 0.5) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                width = 0.12, linewidth = 0.5) +
+  geom_point(aes(y = mean_titer), size = 6, shape = 16) +
   ggsignif::geom_signif(comparisons = list(c("Trento","Bal"), c("Trento","Par6")),
                         annotations = c("*","*"),
                         y_position = c(100, 110),
@@ -162,6 +166,7 @@ p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
 p
 
 
+
 #Save the plot
 title_plot <- "Fig_3_titers3.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
@@ -169,29 +174,36 @@ cowplot::save_plot(file = here::here("plots", title_plot),
                    base_width = 16/cm(1), dpi = 1200)
 
 ```
-# Plot for introgressed strains and nanural strains (Supplementary text)
+# Comparison of titers in introgressed lines (Appendix S6)
 
 ```{r}
 
+#Filter only naturally infected lines
 data3 <- data1 |>
-  dplyr::mutate(LineType = dplyr::case_when(
-    Strain %in% c("Trento", "Bal", "Par6", "Rennes") ~ "Natural line",
-    Strain %in% c("Am^Trento", "Am^Bal", "Am^Par6","Am^Rennes") ~ "Introgressed line",
-    TRUE ~ NA_character_ ))
+  dplyr::filter(Strain %in% c("Am^Trento", "Am^Bal", "Am^Par6","Am^Rennes"))
 
-#Merge with mean titer
-strain_replacements <- list(
-  "Trento IAEA" = "Trento")
-  
-for (old_strain in names(strain_replacements)) {
-  new_strain <- strain_replacements[[old_strain]]
-  data_mean <- data_mean %>%
-    dplyr::mutate(
-      Strain = stringr::str_replace_all(Strain, old_strain, new_strain))
-}
+## Overall difference among lines
+m <- lm(log10(Titer) ~ Strain, data = data3)
+anova(m)
 
-data3 <- data3 %>%
-  dplyr::left_join(data_mean %>% dplyr::select(Strain, mean_titer, ci_low, ci_high), by = "Strain")
+## Check model assumptions
+par(mfrow = c(2,2)); plot(m); par(mfrow = c(1,1))
+
+p_diag <- ggplotify::as.ggplot(function() {
+  graphics::par(mfrow = c(2, 2))
+  graphics::plot(m)
+})
+
+cowplot::save_plot(file = here::here("plots", "model_diagnostics_titers_introgression.pdf"),
+                   p_diag, base_height = 13.5/cm(1),
+                   base_width = 16/cm(1), dpi = 1200)
+
+
+```
+                      
+# Figure with titers for introgressed lines S5
+```{r}
+
 
 #Change order of lines
 data3 <- data3 |>
@@ -200,36 +212,35 @@ dplyr:: mutate(Strain = factor(Strain, levels = c("Trento", "Am^Trento", "Bal", 
 #Change names for introgressed lines
 x_label_names <- c("Am^Bal" = bquote(~Am^Bal), "Am^Trento" = bquote(~Am^Trento), "Am^Rennes" = bquote(~Am^Rennes), "Am^Par6" = bquote(~Am^Par6))
 
+##Plot Fig S5
 
-#Plot for natural and introgressed lines in two small facets
-
-plot1 <- ggplot(
-  data3,
-  aes(x = Strain, y = Titer, fill = CI)
-) +
-  ggplot2::scale_x_discrete(labels = x_label_names) +
-  geom_boxplot(outlier.shape = 16, outlier.size = 1.5) +
-  scale_fill_manual(
-    values = c("CI" = "sienna1", "no CI" = "yellow", "Unclear" = "gray")
-  ) +
-  facet_wrap(~ LineType, nrow = 1, scales = "free_x") +
-  labs(
-    x = "Drosophila line",
-    y = expression(italic("Wolbachia") ~ " titer"),
-    fill = "CI status"
-  ) +
-  theme_bw() +
+p <- ggplot(data3, aes(x = Strain, y = Titer, colour = CI)) +
+  geom_jitter(width = 0.12, height = 0, size = 4, alpha = 0.5) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                width = 0.12, linewidth = 0.5) +
+  geom_point(aes(y = mean_titer), size = 6, shape = 16) +
+  scale_colour_manual(values = c("CI" = "#DD3497", "no CI" = "#54278F"),
+                      guide = "none") +
+  scale_x_discrete(labels = x_label_names) +
+  labs(x = NULL, y = expression(italic("Wolbachia")~"titer in testes")) +
+  theme_classic(base_size = 13) +
   theme(
-    strip.text = element_text(face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.line            = element_line(linewidth = 0.4),
+    axis.ticks           = element_line(linewidth = 0.4),
+    axis.title.y         = element_text(size = 16),
+    axis.text            = element_text(size = 14, colour = "black"),
+    axis.text.x          = element_text(size = 15, face = "bold", colour = "black"),
+    plot.margin          = margin(6, 8, 6, 6)
   )
+p
 
-plot1 <- plot1 + theme(plot.margin = margin(t = 25, r = 10, b = 10, l = 10, unit = "pt"))
 
-plot1_AB <- cowplot::ggdraw(plot1) + cowplot::draw_label("A", x = 0.01, y = 0.99, hjust = 0, vjust = 1, fontface = "bold", size = 18) + cowplot::draw_label("B", x = 0.49, y = 0.99, hjust = 0, vjust = 1, fontface = "bold", size = 18)
+#Save the plot
+title_plot <- "Fig_3_titers_introgressed.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   p, base_height = 13.5/cm(1),
+                   base_width = 16/cm(1), dpi = 1200)
 
-title_plot <- "Wolbachia_titer_natural_introgressed.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot), plot1_AB, base_width = 20/cm(1), base_height = 13/cm(1), dpi = 1200)
 
 ```
 # Correlation between hatch rate in test cross and Wolbachia density
