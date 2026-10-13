@@ -517,9 +517,10 @@ p$data$UFBoot <- suppressWarnings(
 
 p$data$UFBoot_group <- cut(
   p$data$UFBoot,
-  breaks = c(14, 49, 68, 88, 100),
-  labels = c("15-49", "50-68", "69-88", "89-100"),
-  include.lowest = TRUE
+  breaks = c(70, 90, 100),
+  labels = c("70-89", "90-100"),
+  include.lowest = TRUE,
+  right = FALSE
 )
 
 node_data <- p$data |>
@@ -561,12 +562,10 @@ p <- p +
   ) + labs(
   colour = "Bootstrap values"
 ) +
-guides(
-  colour = guide_legend(
-    nrow = 1,
-    byrow = TRUE
-  )
-) +
+  scale_colour_manual(
+    values = c("70-89" = "#00BFC4", "90-100" = "#C77CFF"),
+    name = "Bootstrap values"
+  ) +
 theme(
   legend.position = "bottom",
   legend.direction = "horizontal",

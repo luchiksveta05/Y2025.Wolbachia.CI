@@ -254,7 +254,56 @@ ggsave(file.path(here::here(), "plots", "Fig.4D_Normalized_coverage.pdf"), width
 ### Coverage per gene for wRi
 ```{r, eval=TRUE}
 
-## Plot
+##Make labels for strain names
+strain_labels <- c(
+  "US.CA_wRI_Dsim2" = "italic(w)*'Ri US-CA'",
+  "ZB_wRI_Dsim1"    = "italic(w)*'Ri ZB'")
+
+gene_coverage |>
+  dplyr::filter(strain %in% c("US.CA_wRI_Dsim2", "ZB_wRI_Dsim1")) |>
+  ggplot(aes(x = gene, y = mean_normalized_coverage, fill = gene_type)) +
+  geom_col(alpha = 0.7) +
+  geom_errorbar(
+    aes(ymin = mean_normalized_coverage - sd_normalized_coverage,
+        ymax = mean_normalized_coverage + sd_normalized_coverage),
+    width = 0.2
+  ) +
+  scale_fill_manual(
+    values = c("One-copy gene" = "#7B6BA8", "cif Type I" = "#E83E8C",
+               "cif Type II" = "#E89C50"),
+    labels = c("One-copy gene" = "One-copy gene",
+               "cif Type I" = expression(italic("cif")~"Type I"),
+               "cif Type II" = expression(italic("cif")~"Type II")),
+    name = NULL
+  ) +
+  labs(x = "Gene", y = "Mean normalized gene coverage") +
+  scale_x_discrete(labels = c("FtsZ" = "ftsZ", "wsp" = "wsp",
+                              "TypeI_cifA" = "cifA", "TypeI_cifB" = "cifB",
+                              "TypeII_cifA" = "cifA", "TypeII_cifB" = "cifB")) +
+  theme_classic() +
+  theme(
+    axis.text.x  = element_text(size = 12, angle = 45, hjust = 1,
+                                face = "italic", colour = "black",
+                                margin = margin(t = 5)),
+    axis.text.y  = element_text(size = 12, colour = "black",
+                                margin = margin(r = 5)),
+    axis.title.y = element_text(size = 16, colour = "black",
+                                margin = margin(r = 10)),
+    axis.title.x = element_text(size = 14, colour = "black",
+                                margin = margin(t = 5)),
+    strip.text   = element_text(size = 17, colour = "black"),
+    legend.text  = element_text(size = 10, colour = "black"),
+    legend.position = "right",
+    plot.margin  = margin(10, 10, 10, 20)
+  ) +
+  facet_wrap(~strain, ncol = 2,
+             labeller = labeller(strain = as_labeller(strain_labels, label_parsed)))
+
+ggsave(file.path(here::here(), "plots", "Fig.S8_Normalized_coverage_wRI.pdf"),
+       width = 30, height = 10, units = "cm")
+
+
+## Plot all strains including wRi
 gene_coverage|>
   #dplyr::filter(strain=="US.CA_wRI_Dsim2"|strain=="ZB_wRI_Dsim1")|>
   dplyr::mutate(threshold = dplyr::if_else(

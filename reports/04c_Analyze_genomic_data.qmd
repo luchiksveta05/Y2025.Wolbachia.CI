@@ -397,7 +397,7 @@ p <- ggtree(tree_rooted, layout = "rectangular", linewidth = 0.8)
 p$data$Bootstrap <- round(suppressWarnings(as.numeric(p$data$label)))
 
 ## Group bootstrap support values into four support categories
-p$data$Bootstrap_group <- cut(p$data$Bootstrap, breaks = c(-Inf, 49, 68, 88, 100), labels = c("0–49", "50–68", "69–88", "89–100"), include.lowest = TRUE)
+p$data$Bootstrap_group <- cut(p$data$Bootstrap, breaks = c(70, 90, Inf), labels = c("70–89", "90–100"), include.lowest = TRUE)
 
 ##Make labels for strain names
 p$data$display_label <- dplyr::recode(p$data$label, "Col-FR-Bal001" = "bolditalic(w)*bold('Suz Bal')", "Iso-FR-Par006" = "bolditalic(w)*bold('Suz Par6')", "Col-FR-Ren000" = "bolditalic(w)*bold('Suz Rennes')", "IT_Tre_Om300" = "italic(w)*'Suz IT-Tre (reference)'", "Col-IT-Tre000" = "bolditalic(w)*bold('Suz Trento')", "Ko-Nam_NW2" = "italic(w)*'Spc Ko-Nam'", "CN-Kun_KM5" = "italic(w)*'Spc CN-Kun'", "D-sub" = "italic(w)*'Spc D-sub'", "ZB_wRI_Dsim1" = "italic(w)*'Ri ZB'", "US-CA_wRI_Dsim2" = "italic(w)*'Ri US-CA'", .default = p$data$label)
@@ -410,7 +410,7 @@ p_final <- p +
   geom_point(data = node_data, aes(x = x, y = y, colour = Bootstrap_group), inherit.aes = FALSE, shape = 16, size = 3) +
   geom_tiplab(aes(label = display_label, fontface = ifelse(label %in% c("Col-FR-Bal001", "Iso-FR-Par006", "Col-FR-Ren000", "Col-IT-Tre000"), "bold", "plain")), parse = TRUE, size = 3.8, offset = max(p$data$x, na.rm = TRUE) * 0.012) +
   geom_treescale(x = 0.50, y = 0.25, width = 0.07, fontsize = 3.5, linesize = 0.8, offset = -0.45) +
-  scale_colour_manual(values = c("15–49" = "#F8766D", "50–68" = "#7CAE00", "69–88" = "#00BFC4", "89–100" = "#C77CFF"), breaks = c("0–49", "50–68", "69–88", "89–100")) +
+  scale_colour_manual(values = c("70–89" = "#00BFC4", "90–100" = "#C77CFF"), breaks = c("70–89", "90–100")) +
   labs(colour = "Bootstrap values") +
   guides(colour = guide_legend(nrow = 1, byrow = TRUE)) +
   theme(legend.position = "bottom", legend.direction = "horizontal", legend.box.spacing = grid::unit(0, "pt"), legend.margin = margin(t = -8, r = 0, b = 0, l = 0), plot.margin = margin(t = 5, r = 5, b = 0, l = 5)) +
