@@ -16,7 +16,6 @@ devtools::load_all()
 ```
 
 # Read dataset, summarize data for each CoupleID and add nessesary information
-
 ```{r}
 
 ## Read data
@@ -74,9 +73,119 @@ merged_data <- merged_data |>
 ## Export file with hatch rates per Couple_ID
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", row.names = FALSE)
 
-```
-# CI assay: Fit one zero-inflated GLMM with merged_data
 
+## 229 zeros out of 992 Petri dishes
+## With 1–5 observations per couple
+z <- with(data, tapply(LarvaeCount == 0, CoupleID,
+                           function(v) paste0(sum(v), "/", length(v))))
+table(z)
+```
+
+# Check structure of model
+## Check structure of model with raw data
+```{r, eval=TRUE}
+
+
+# Subset the data with a single type of cross (with Bal line)
+dat <- data[data$Female%in%c("Am", "Bal")&data$Male%in%c("Am", "Bal"), ]
+
+## Binomial models
+msat_bin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~0 , family=binomial)
+
+msat_bin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~1 , family=binomial)
+
+msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount)~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~1 +CrossType, family=binomial)
+
+
+## Beta-binomial models
+msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~0 , family=glmmTMB::betabinomial())
+
+msat_betabin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~1 , family=glmmTMB::betabinomial())
+
+msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=glmmTMB::betabinomial())
+
+MuMIn::model.sel(msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType, msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType) 
+
+## Check convergence
+m <- msat_betabin_zi_CrossType
+c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
+
+## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
+plogis(glmmTMB::fixef(m)$zi)          
+glmmTMB::VarCorr(m)
+
+so <- DHARMa::simulateResiduals(m, n = 1000)
+## Check that residuals are close to the diagonal
+plot(so)
+
+## No remaining zero inflation
+DHARMa::testZeroInflation(so)
+
+obs0 <- tapply(dat$LarvaeCount == 0, dat$CrossType, sum)
+sim0 <- apply(so$simulatedResponse == 0, 2,
+             function(z) tapply(z, dat$CrossType, sum))
+
+cbind(observed = obs0,
+       expected = round(rowMeans(sim0), 1),
+       lo95     = apply(sim0, 1, quantile, 0.025, na.rm=TRUE),
+       hi95     = apply(sim0, 1, quantile, 0.975, na.rm=TRUE))
+
+## Cl: A model with a single zero inflation across cross types seems OK
+```
+
+## Check structure of model with zero inflation with aggregated data
+```{r, eval=TRUE}
+
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+# Subset the data with a single type of cross (with Bal line)
+dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
+
+## Binomial models
+msat_bin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~0 , family=binomial)
+
+msat_bin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 , family=binomial)
+
+msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=binomial)
+
+
+## Beta-binomial models
+msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~0 , family=glmmTMB::betabinomial())
+
+msat_betabin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 , family=glmmTMB::betabinomial())
+
+msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=glmmTMB::betabinomial())
+
+MuMIn::model.sel(msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType, msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType) 
+
+## Check convergence
+m <- msat_betabin_zi_CrossType
+c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
+
+## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
+plogis(glmmTMB::fixef(m)$zi)          
+glmmTMB::VarCorr(m)
+
+so <- DHARMa::simulateResiduals(m, n = 1000)
+## Check that residuals are close to the diagonal
+plot(so)
+
+## No remaining zero inflation
+DHARMa::testZeroInflation(so)
+
+obs0 <- tapply(dat$sum_larvacount == 0, dat$CrossType, sum)
+sim0 <- apply(so$simulatedResponse == 0, 2,
+             function(z) tapply(z, dat$CrossType, sum))
+
+cbind(observed = obs0,
+       expected = round(rowMeans(sim0), 1),
+       lo95     = apply(sim0, 1, quantile, 0.025),
+       hi95     = apply(sim0, 1, quantile, 0.975))
+
+## Cl: A model with a single zero inflation across cross types seems OK
+```
+
+# CI assay: Fit one zero-inflated GLMM with merged_data
 ```{r}
 
 merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
@@ -185,7 +294,7 @@ MuMIn::model.sel(m0, m1, m2, m3)
 
 ## Compute confidence interval for m3
 ## Refit model nsim times
-b1 <- lme4::bootMer(m3, FUN=extract_model, nsim=500, .progress="txt")
+b1 <- lme4::bootMer(m3, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=500, .progress="txt")
   
 ## Extract all CIs
 confint <- bCI_tab(b=b1)
@@ -301,7 +410,7 @@ summary(m1)
 (p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
 
 ## Refit model nsim times
-  b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=500, .progress="txt")
+  b1 <- lme4::bootMer(m1, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=500, .progress="txt")
   
 ##Confidence intervals estimation
   confint <- bCI_tab(b=b1)
@@ -813,7 +922,7 @@ summary(m1)
 (p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
 
 ## Refit model nsim times
-  b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=100, .progress="txt")
+  b1 <- lme4::bootMer(m1, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=100, .progress="txt")
   
   ##Confidence intervals estimation
   confint <- bCI_tab(b=b1)
@@ -855,7 +964,7 @@ summary(m3)
 (p2 <- 1/(1+exp(-glmmTMB::fixef(m3)$cond)))
 
 ## Refit model nsim times
-  b1 <- lme4::bootMer(m3, FUN=extract_model, nsim=100, .progress="txt")
+  b1 <- lme4::bootMer(m3, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=100, .progress="txt")
   
   ##Confidence intervals estimation
   confint <- bCI_tab(b=b1)
@@ -897,7 +1006,7 @@ summary(m1)
 (p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
 
 ## Refit model nsim times
-  b1 <- lme4::bootMer(m1, FUN=extract_model, nsim=100, .progress="txt")
+  b1 <- lme4::bootMer(m1, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=100, .progress="txt")
   
   ##Confidence intervals estimation
   confint <- bCI_tab(b=b1)
