@@ -74,72 +74,25 @@ merged_data <- merged_data |>
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", row.names = FALSE)
 
 
-## 229 zeros out of 992 Petri dishes
-## With 1–5 observations per couple
-z <- with(data, tapply(LarvaeCount == 0, CoupleID,
+## 16 zeros out of 272 Petri dishes
+## With 2–3 observations per couple, the data barely separate the random coupleID from the zero inflation (i.e. “this couple has a low mean” from “this couple had chance structural zeros”).
+z <- with(merged_data, tapply(prop == 0, CoupleID,
                            function(v) paste0(sum(v), "/", length(v))))
 table(z)
+sum(merged_data$prop == 0)
+nrow(merged_data)
+
 ```
 
-# Check structure of model
-## Check structure of model with raw data
-```{r, eval=TRUE}
-
-
-# Subset the data with a single type of cross (with Bal line)
-dat <- data[data$Female%in%c("Am", "Bal")&data$Male%in%c("Am", "Bal"), ]
-
-## Binomial models
-msat_bin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~0 , family=binomial)
-
-msat_bin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~1 , family=binomial)
-
-msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount)~ -1+CrossType + (1|CoupleID), data=dat, ziformula=~1 +CrossType, family=binomial)
-
-
-## Beta-binomial models
-msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~0 , family=glmmTMB::betabinomial())
-
-msat_betabin_zi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~1 , family=glmmTMB::betabinomial())
-
-msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr-LarvaeCount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=glmmTMB::betabinomial())
-
-MuMIn::model.sel(msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType, msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType) 
-
-## Check convergence
-m <- msat_betabin_zi_CrossType
-c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
-
-## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
-plogis(glmmTMB::fixef(m)$zi)          
-glmmTMB::VarCorr(m)
-
-so <- DHARMa::simulateResiduals(m, n = 1000)
-## Check that residuals are close to the diagonal
-plot(so)
-
-## No remaining zero inflation
-DHARMa::testZeroInflation(so)
-
-obs0 <- tapply(dat$LarvaeCount == 0, dat$CrossType, sum)
-sim0 <- apply(so$simulatedResponse == 0, 2,
-             function(z) tapply(z, dat$CrossType, sum))
-
-cbind(observed = obs0,
-       expected = round(rowMeans(sim0), 1),
-       lo95     = apply(sim0, 1, quantile, 0.025, na.rm=TRUE),
-       hi95     = apply(sim0, 1, quantile, 0.975, na.rm=TRUE))
-
-## Cl: A model with a single zero inflation across cross types seems OK
-```
-
+# Check structure
 ## Check structure of model with zero inflation with aggregated data
 ```{r, eval=TRUE}
-
+## Load aggregated data
 merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Subset the data with a single type of cross (with Bal line)
 dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
+#dat <- merged_data[merged_data$Female%in%c("Am", "Par6")&merged_data$Male%in%c("Am", "Par6"), ]
 
 ## Binomial models
 msat_bin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~0 , family=binomial)
@@ -148,7 +101,6 @@ msat_bin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larv
 
 msat_bin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=binomial)
 
-
 ## Beta-binomial models
 msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~0 , family=glmmTMB::betabinomial())
 
@@ -156,15 +108,18 @@ msat_betabin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_
 
 msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, family=glmmTMB::betabinomial())
 
-MuMIn::model.sel(msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType, msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType) 
+msat_betabin_zi_CrossType2 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1+CrossType , data=dat, ziformula=~1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial())
+summary(msat_betabin_zi_CrossType2)
+
+## AICc
+MuMIn::model.sel(msat_bin_nozi, msat_bin_zi, msat_bin_zi_CrossType, msat_betabin_nozi, msat_betabin_zi, msat_betabin_zi_CrossType, msat_betabin_zi_CrossType2) 
 
 ## Check convergence
-m <- msat_betabin_zi_CrossType
+m <- msat_betabin_zi_CrossType2
 c(conv = m$fit$convergence, pdHess = m$sdr$pdHess)
 
-## 8% of zeros comes from the zero inflation (the rest comes from the betabibomial)
+## 0-60% of zeros comes from the zero inflation (the rest comes from the betabibomial)
 plogis(glmmTMB::fixef(m)$zi)          
-glmmTMB::VarCorr(m)
 
 so <- DHARMa::simulateResiduals(m, n = 1000)
 ## Check that residuals are close to the diagonal
@@ -182,139 +137,122 @@ cbind(observed = obs0,
        lo95     = apply(sim0, 1, quantile, 0.025),
        hi95     = apply(sim0, 1, quantile, 0.975))
 
-## Cl: A model with a single zero inflation across cross types seems OK
+## Check residuals for the homogeneity in variance
+round(tapply(residuals(so), dat$CrossType, var), 3)   # more variation with Bal males
+## Levene Test
+DHARMa::testCategorical(so, catPred = factor(dat$CrossType))
+## OK with different dispersion parameters phi for Bal vs. am males
 ```
 
-# CI assay: Fit one zero-inflated GLMM with merged_data
+## Best model estimate
 ```{r}
+## cross type effect on hatch rate and mating probability
+dat$prop <- dat$sum_larvacount / dat$sum_eggcount_corr
+m <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+summary(m)
+logLik(m)
+logLik(msat_betabin_zi_CrossType2)
 
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
-
-# Subset the data with a single type of cross (with Bal line)
-dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
-
+## Compute observed hatch rate
 datCrossType <- dat |>
   dplyr::group_by(CrossType) |>
   dplyr::summarise(Sum_eggcount_corr = sum(sum_eggcount_corr),
                    Sum_larvacount = sum(sum_larvacount))|>
   dplyr::mutate(hatchrate = Sum_larvacount / Sum_eggcount_corr)
 
-## Fit null model
-m0 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ 1 , data=dat, ziformula=~1 , family=binomial)
 
-## Check the model
-glmmTMB::diagnose(fit=m0)
-summary(m0)
 
 ## Zero-inflated part of the model
-unique(predict(m0, type="zprob"))
+## Probability of having no mating
+tapply(predict(m, type="zprob"), dat$CrossType, mean)
+(p1 <- 1/(1+exp(-glmmTMB::fixef(m)$zi)))
 
-## Hatch rate
-unique(predict(m0, type="conditional"))
+## Predicted hatch rate
+tapply(predict(m, type="conditional"), dat$CrossType, mean)
+(p2 <-1/(1+exp(-glmmTMB::fixef(m)$cond)))
 
 ## Combined probability (1-prob_no_mating) x hatch rate
-unique(predict(m0, type="response"))
-
-## Probability of having no mating
-(p1 <- 1/(1+exp(-glmmTMB::fixef(m0)$zi)))
-
-## Hatch rate
-(p2 <-1/(1+exp(-glmmTMB::fixef(m0)$cond)))
-
-##Fitted probability of not dying
+tapply(predict(m, type="response"), dat$CrossType, mean)
 (1-p1)*p2
 
-## Observed probability of not dying
-sum(dat$sum_larvacount)/sum(dat$sum_eggcount_corr)
+## Observed hatch rate
+tapply(dat$sum_larvacount, dat$CrossType, sum)/tapply(dat$sum_eggcount_corr, dat$CrossType, sum)
 
-## cross type effect on hatch rate
-m1 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ 1 , family=binomial)
+## Extract precision parameter
+tapply(predict(m, type="disp"), dat$CrossType, mean)
+phi <- exp(glmmTMB::fixef(m)$disp)
 
-## Check the model
-glmmTMB::diagnose(fit=m1)
-summary(m1)
+## Compute overdispersion
+rho <- 1 / (phi + 1)
+## Check precision and overdispersion parameters
+round(rbind(phi = phi, rho = rho), 3)
 
-## Probability of having no mating
-(p1 <- 1/(1+exp(-glmmTMB::fixef(m1)$zi)))
+# Standard deviation of p (the hatch probability) among males higher among Bal males than among Am males
+mu <- plogis(glmmTMB::fixef(m)$cond)
+round(sqrt(mu * (1 - mu) * rho), 3)
 
-## Hatch rate
-(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
 
-##Fitted probability of not dying
-(1-p1)*p2
 
-## Observed probability of not dying
-datCrossType$hatchrate
+```
 
-## cross type effect on hatch rate and mating probability
-m2 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount) ~ 1 + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial)
+# Test function fit_ZI_Beta_binomial
+## Model selection for crosses with Bal 
+```{r}
 
-## Check the model
-glmmTMB::diagnose(fit=m2)
-summary(m2)
-
-## Probability of having no mating
-(p1 <- 1/(1+exp(-glmmTMB::fixef(m2)$zi)))
-
-## Hatch rate
-(p2 <-1/(1+exp(-glmmTMB::fixef(m2)$cond)))
-
-##Fitted probability of not dying
-(1-p1)*p2
-
-## Observed probability of not dying
-datCrossType$hatchrate
-
-## cross type effect on hatch rate and mating probability
-dat$prop <- dat$sum_larvacount / dat$sum_eggcount_corr
-m3 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr-sum_larvacount)~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial, control=glmmTMB::glmmTMBControl(optCtrl=list(iter.max=1e4, eval.max=1e4)))
-#m3 <- glmmTMB::glmmTMB(prop~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ -1 + CrossType , family=binomial, weight=sum_eggcount_corr)
-
-## Check the model
-#glmmTMB::diagnose(fit=m3)
-summary(m3)
-logLik(m3)
-## Probability of having no mating
-(p1 <- 1/(1+exp(-glmmTMB::fixef(m3)$zi)))
-
-## Hatch rate
-(p2 <-1/(1+exp(-glmmTMB::fixef(m3)$cond)))
-
-## CI estimate
-1-p2[2]/p2[3]
-
-##Fitted probability of not dying
-(1-p1)*p2
-
-## Observed probability of not dying
-datCrossType$hatchrate
-
-MuMIn::AICc(m0, m1, m2, m3)
-MuMIn::model.sel(m0, m1, m2, m3)
+ ## Fit null model
+  m0 <- glmmTMB::glmmTMB(prop~ 1, ziformula=~1 , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on hatch rate (p2)
+  m1 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~1 , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on mating probability (p1)
+  m2 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~ -1 + CrossType , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on hatch rate (p2) and mating probability (p1)
+  m3 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## Fit null model + differences in overdispersion among CrossTypes
+  m4 <- glmmTMB::glmmTMB(prop~ 1, ziformula=~1 , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on hatch rate (p2) + differences in overdispersion among CrossTypes
+  m5 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~1 , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on mating probability (p1) + differences in overdispersion among CrossTypes
+  m6 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~ -1 + CrossType , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  
+  ## cross type effect on hatch rate (p2) and mating probability (p1) + differences in overdispersion among CrossTypes
+  m7 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+ 
+MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7)
 
 ## Compute confidence interval for m3
 ## Refit model nsim times
-b1 <- lme4::bootMer(m3, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=500, .progress="txt")
+b1 <- lme4::bootMer(m3, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=dat), nsim=5, .progress="txt")
   
 ## Extract all CIs
-confint <- bCI_tab(b=b1)
+confint <- data.frame(bCI_tab(b=b1))
 
+## Add sample size
+n <- tapply(dat$CrossType, dat$CrossType, length)
+confint$n <- c(rep(n, times=(nrow(confint)-3)/4), rep(NA, 3))
+confint <- dplyr::relocate(confint, n)
 ```
 
-# CI assay: Fit each zero-inflated GLMM with merged data and account for nonindependence for CoupleID 
+## Model selection for crosses with Bal, Trento, Par6 and Rennes 
 ```{r}
 ## Example for one cross
-AmBal <- fit_ZIBinomial(crosses=c("Europe", "Am", "Bal"), data=merged_data)
+AmBal <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Bal"), data=merged_data, nbootsim=5)
 
-AmTrento <- fit_ZIBinomial(crosses=c("Europe", "Am", "Trento"), data=merged_data)
+AmTrento <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Trento"), data=merged_data, nbootsim=500)
 
-AmRennes <- fit_ZIBinomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data)
+AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data, nbootsim=500)
 
-AmPar6 <- fit_ZIBinomial(crosses=c("Europe", "Am", "Par6"), data=merged_data)
+AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500)
 
 ```
 
-# CI assay: Fit each zero-inflated GLMM with merged data for Bal, Trento, Par6 and Rennes lines 
+# Make Fig. 1
+## Fit for Fig. 1 with Bal, Trento, Par6 and Rennes 
 ```{r}
 ## List of lines
 europe <- unique(merged_data$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
@@ -324,7 +262,7 @@ europe <- europe[c(1, 2, 3, 11)]
 crosses <- data.frame(continent=rep("Europe", 4), uninf_strain="Am" , inf_strain=c("Trento", "Bal", "Rennes", "Par6"))
 
 ## Fit all models on all the crosses function with nbootsim = 500
-results <- apply(crosses, 1, fit_ZIBinomial, nbootsim = 500)
+results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data, nbootsim = 500)
 
 ## Extract the results from all models
 crossnum <- 1:nrow(crosses)
@@ -335,18 +273,140 @@ confintp2 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infs
 
 AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="modelaicc"))
 
+overdisp <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintdisp"))
+
 CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
 
-## Export files
-write.table(x = AICC, file=file.path(here::here(), "data", "derived_data", "model_AICc.csv"), sep=";", row.names = FALSE)
+block <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="block"))
 
-write.table(x = confintp1, file=file.path(here::here(), "data", "derived_data", "confintp1.csv"), sep=";", row.names = FALSE)
-write.table(x = confintp2, file=file.path(here::here(), "data", "derived_data", "confintp2.csv"), sep=";", row.names = FALSE)
-write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "CI_estimates.csv"), sep=";", row.names = FALSE)
+## Add AmxAm
+names(block)[names(block)=="output.parameter...1.."] <- "block"
+block <- rbind(block, c("Europe", "Am", "Control", "1", "1_2_5_6_7"))
+
+## Export files
+write.table(x = AICC, file=file.path(here::here(), "data", "derived_data", "TableS2_model_AICc.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp1, file=file.path(here::here(), "data", "derived_data", "TableS2_confintp1.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp2, file=file.path(here::here(), "data", "derived_data", "TableS2_confintp2.csv"), sep=";", row.names = FALSE)
+write.table(x = overdisp, file=file.path(here::here(), "data", "derived_data", "TableS2_overdisp.csv"), sep=";", row.names = FALSE)
+write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "TableS2_CI_estimates.csv"), sep=";", row.names = FALSE)
+
 
 ```
 
-# Figure 2
+## Prepare observed and fitted data for Figure 1
+```{r}
+
+#Load fitted hatch rate excluding structural zeros
+fitted_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2.csv"), sep=";", header = TRUE))
+
+## Remove duplicated AmxAm
+fitted_data <- fitted_data |>
+  dplyr::filter(!duplicated(CrossType))
+
+# Add Pair
+fitted_data <- fitted_data |>
+  dplyr::mutate(
+    Pair = as.character(CrossType) |>
+      sub(pattern = "^(.+)x\\1$", replacement = "\\1") |>   # XxX     -> X
+      sub(pattern = "^Amx|xAm$",  replacement = "")    |>   # AmxX, XxAm -> X
+      dplyr::recode(Am = "Control")                         # AmxAm   -> Control
+  )|>
+  dplyr::mutate(Pair = factor(Pair, levels = c("Control", "Trento", "Bal", "Par6", "Rennes")))
+
+#Load observed hatch rate
+observed_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+## Cross to used for observed hatch rate
+crosses <- c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm")
+
+# Filter only data frot eh plot
+observed_data <- observed_data |>
+  dplyr::filter(CrossType %in% crosses)|>
+  dplyr::mutate(Year=as.factor(Year))
+
+## Change order for the CrosstypesLabel
+desired_order2 <- c(
+    "AmxAm", 
+    "AmxTrento", "TrentoxAm", "TrentoxTrento",
+    "AmxBal", "BalxAm","BalxBal",
+    "AmxRennes", "RennesxAm", "RennesxRennes",
+    "AmxPar6", "Par6xAm", "Par6xPar6")
+
+labs <- unique(fitted_data$CrossTypeLabel)
+cross_of_lab <- sub(" \\(.*$", "", labs)                 # "AmxAm (59)" -> "AmxAm"
+lab_levels <- labs[order(match(cross_of_lab, desired_order2))]
+
+fitted_data <- fitted_data |>
+  dplyr::mutate(CrossTypeLabel = factor(CrossTypeLabel, levels = lab_levels))
+
+## Add the CrossTypeLabel with the right number of replicates
+observed_data <- observed_data |>
+  dplyr::rename(CrossTypeLabelold=CrossTypeLabel)|>
+  dplyr::left_join(fitted_data[, c("Pair","CrossTypeLabel", "CrossType")], by="CrossType")
+
+# One row per infected strain and allowed batch
+blocks <- block |>
+  dplyr::mutate(Batch = strsplit(block, "_")) |>
+  tidyr::unnest(Batch) |>
+  dplyr::mutate(Batch = as.integer(Batch)) |>
+  dplyr::select(infstrain, Batch)|>
+  dplyr::mutate(Pair_block=paste(infstrain, Batch, sep="_"))|>
+  dplyr::select(infstrain, Pair_block)
+
+## 45 Petri dishes not used for the figure
+observed_data |>
+  dplyr::mutate(Pair_block=paste(Pair, Batch, sep="_")) |>
+  dplyr::left_join(blocks, by = "Pair_block") |>
+  dplyr::filter(is.na(infstrain)) 
+
+## Remove the 45 Petri dishes not used
+observed_data <- observed_data |>
+  dplyr::mutate(Pair_block=paste(Pair, Batch, sep="_")) |>
+  dplyr::left_join(blocks, by = "Pair_block") |>
+  dplyr::filter(!is.na(infstrain)) 
+```
+
+## Plot new Figure 1
+```{r}
+#Create bar plot with individual data points
+hatchrateplot1 <- fitted_data |>
+  ggplot2::ggplot(aes(x = CrossTypeLabel, y = Estimate, fill = Cross), size=100) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.5., ymax = X97.5.), width = 0.4) +
+  ggplot2::geom_point(data = observed_data, aes(x = CrossTypeLabel, y = hatchrate, color = Year), position = position_jitter(width = 0.15, height = 0), size =3) + 
+  ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.1), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
+  scale_fill_manual(values = c("Control cross 1 W- x W-" = "#00bfc4", "Test cross W- x W+" = "#F8766D", "Control cross 2 W+ x W-" = "#7cae00", "Control cross 3 W+ x W+" = "#c77cff")) +
+  scale_color_manual(values = c ("2023" = "#931F1D", "2024" = "#00008B")) + 
+  labs(x = "Cross", y = "Hatch rate", title = "Observed hatch rate and fitted hatch rate excluding structural zeros for each cross (female strain x male strain)", fill = "Cross type") +
+  ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
+  theme_grey(base_size = 30) +
+  theme(plot.margin = margin(20, 20, 20, 20, "pt"),
+        #strip.background = element_blank(),  # Removes background from facet labels
+        strip.placement = "outside", 
+        axis.text.x = element_text(size=30, angle = 45, hjust = 1), #modify the text of the axis x
+        axis.text=element_text(size=20),
+        title = element_text(size = 0), #face="bold" makes it bold
+        axis.title=element_text(size=35,face="bold"),
+        legend.text=element_text(size = 30),
+        legend.title = element_text(size = 30),
+        legend.position = "top",
+        strip.text.x = element_text(size =45),
+        panel.grid.major.y = element_line(linetype = "dotted", color = "grey")) + # text for the subtitles/strips
+        theme(
+          panel.background = element_rect(fill = "white"),
+          legend.background = element_rect(fill = "white"),
+          legend.position = "top"
+          )+ylim(0, 1.1)
+
+
+#save bar plot
+title_plot <- "barblock1-7_Europe.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   hatchrateplot1, base_height = 40/cm(1),
+                   base_width = 100/cm(1), dpi = 1200)
+```
+
+# Old Figure 1
 ```{r}
 
 library (rlang)

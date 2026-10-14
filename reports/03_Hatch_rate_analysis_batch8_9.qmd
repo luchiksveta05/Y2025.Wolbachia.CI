@@ -59,6 +59,16 @@ merged_data <- merged_data |>
 ##Save file with data for each coupleID
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", row.names = FALSE)
 
+
+## 82 zeros out of 753 Petri dishes
+## With 2–3 observations per couple, the data barely separate the random coupleID from the zero inflation (i.e. “this couple has a low mean” from “this couple had chance structural zeros”).
+z <- with(data, tapply(LarvaeCount == 0, CoupleID,
+                           function(v) paste0(sum(v), "/", length(v))))
+table(z)
+sum(data$LarvaeCount == 0)
+nrow(data)
+
+
 ```
 
 
@@ -109,8 +119,10 @@ unique(dat_g[, c("CrossType", "alpha1", "dominance", "X", "Y")])
 ## 40 zeros out of 229 Petri dishes
 ## With 2–3 observations per couple, the data barely separate the random coupleID from the zero inflation (i.e. “this couple has a low mean” from “this couple had chance structural zeros”).
 z <- with(dat_g, tapply(prop == 0, CoupleID,
-                           function(v) paste0(sum(v), "/", length(v))))
+                          function(v) paste0(sum(v), "/", length(v))))
 table(z)
+sum(dat_g$prop == 0)
+sum(table(z))
 
 msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + (1 | CoupleID),
                             ziformula = ~0, family = glmmTMB::betabinomial(), data = dat_g)
@@ -227,7 +239,6 @@ strains <- c("Par6", "Bal", "F1 Par6xBal", "F1 BalxPar6", "F2 Par6xBalxPar6xBal"
 crosstype <- paste0("Amx", strains)
 
 dat_g <- merged_data[merged_data$CrossType%in%crosstype, ]
-
 
 ## Compute proportion of eggs that hatch into larvae
 dat_g$prop <- dat_g$sum_larvacount / dat_g$sum_eggcount_corr
