@@ -250,7 +250,6 @@ AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merge
 AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500)
 
 ```
-
 # Make Fig. 1
 ## Fit for Fig. 1 with Bal, Trento, Par6 and Rennes 
 ```{r}
@@ -299,7 +298,7 @@ write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "TableS
 ```{r}
 
 #Load fitted hatch rate excluding structural zeros
-fitted_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2.csv"), sep=";", header = TRUE))
+fitted_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "TableS2_confintp2.csv"), sep=";", header = TRUE))
 
 ## Remove duplicated AmxAm
 fitted_data <- fitted_data |>
@@ -319,11 +318,18 @@ fitted_data <- fitted_data |>
 observed_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 ## Cross to used for observed hatch rate
-crosses <- c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm")
+#crosses <- c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm")
+u <- unique(crosses$uninf_strain)              # "Am"
+strain_order <- crosses$inf_strain                # or e.g. c("Bal", "Trento", "Rennes", "Par6")
+cross_order <- c(paste0(u, "x", u),
+                 unlist(lapply(strain_order, \(s) c(paste0(u, "x", s),     # AmxS (test cross)
+                                                    paste0(s, "x", u),     # SxAm
+                                                    paste0(s, "x", s)))))  # SxS
 
+cross_order
 # Filter only data frot eh plot
 observed_data <- observed_data |>
-  dplyr::filter(CrossType %in% crosses)|>
+  dplyr::filter(CrossType %in% cross_order)|>
   dplyr::mutate(Year=as.factor(Year))
 
 ## Change order for the CrosstypesLabel
@@ -405,6 +411,175 @@ hatchrateplot1 <- fitted_data |>
 title_plot <- "barblocks1-7_Europe.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplot1, base_height = 40/cm(1),
+                   base_width = 100/cm(1), dpi = 1200)
+```
+
+# Try to make Fig. SX using the same code
+## Fit for Fig. SX with "Am^Trento", "Am^Bal", "Am^Rennes", "Am^Par6"
+```{r}
+## List of lines
+#europe <- unique(merged_data$Male[merged_data$Female=="Am"&merged_data$Male!="Am"])
+#europe <- europe[c(1, 2, 3, 11)]
+
+## Dataframe with introgressed lines
+crosses <- data.frame(continent=rep("europe", 8), uninf_strain="Am" , inf_strain=c("Trento", "Bal", "Rennes", "Par6", "Am^Trento", "Am^Bal", "Am^Rennes", "Am^Par6"))
+
+## Fit all models on all the crosses function with nbootsim = 500
+results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data[merged_data$Batch%in%c(6, 7),], nbootsim = 5, dec_places=3)
+
+## Extract the results from all models
+crossnum <- 1:nrow(crosses)
+
+confintp1 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp1"))
+
+confintp2 <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintp2"))
+
+AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="modelaicc"))
+
+overdisp <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintdisp"))
+
+CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
+CI <- CI|>
+  dplyr::select(-c(CrossTypeLabel, Cross))
+
+block <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="block"))
+
+## Add AmxAm
+names(block)[names(block)=="output.parameter...1.."] <- "block"
+block <- rbind(block, c("Europe", "Am", "Control", "1", "6_7"))
+
+## Export files
+write.table(x = AICC, file=file.path(here::here(), "data", "derived_data", "TableS6_model_AICc.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp1, file=file.path(here::here(), "data", "derived_data", "TableS6_confintp1.csv"), sep=";", row.names = FALSE)
+write.table(x = confintp2, file=file.path(here::here(), "data", "derived_data", "TableS6_confintp2.csv"), sep=";", row.names = FALSE)
+write.table(x = overdisp, file=file.path(here::here(), "data", "derived_data", "TableS6_overdisp.csv"), sep=";", row.names = FALSE)
+write.table(x = CI, file=file.path(here::here(), "data", "derived_data", "TableS6_CI_estimates.csv"), sep=";", row.names = FALSE)
+
+
+```
+
+## Prepare observed and fitted data for Figure SX
+```{r}
+
+#Load fitted hatch rate excluding structural zeros
+fitted_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "TableS6_confintp2.csv"), sep=";", header = TRUE))
+
+## Remove duplicated AmxAm
+fitted_data <- fitted_data |>
+  dplyr::filter(!duplicated(CrossType))
+
+# Add Pair
+fitted_data <- fitted_data |>
+  dplyr::mutate(Pair = dplyr::case_when(
+    CrossType %in% c("AmxAm") ~ "Control W-",
+    CrossType %in% c("AmxTrento", "TrentoxAm", "TrentoxTrento") ~ "Am/Trento",
+    CrossType %in% c("AmxBal", "BalxAm", "BalxBal") ~ "Am/Bal",
+    CrossType %in% c("AmxPar6", "Par6xAm","Par6xPar6") ~ "Am/Par6",
+    CrossType %in% c("AmxRennes", "RennesxAm", "RennesxRennes") ~ "Am/Rennes",
+    CrossType %in% c("AmxAm_clone1") ~ "Control W- ",
+    CrossType %in% c("AmxAm^Trento", "Am^TrentoxAm","Am^TrentoxAm^Trento") ~ "Amᵀʳᵉⁿᵗᵒ",
+    CrossType %in% c("AmxAm^Bal", "Am^BalxAm","Am^BalxAm^Bal") ~ "Amᴮᵃˡ",
+    CrossType %in% c("AmxAm^Par6", "Am^Par6xAm","Am^Par6xAm^Par6") ~ "Amᴾᵃʳ⁶",
+    CrossType %in% c("AmxAm^Rennes", "Am^RennesxAm","Am^RennesxAm^Rennes") ~ "Amᴿᵉⁿⁿᵉˢ",
+    TRUE ~ NA_character_ ))
+
+# Add strain tested type to the database
+fitted_data <- fitted_data |>
+  dplyr::mutate (M_strain = dplyr::case_when(
+    Pair %in% c("Control W-", "Control W- ") ~ "Control W-",
+    Pair %in% c("Am/Rennes",  "Amᴿᵉⁿⁿᵉˢ") ~ "Rennes",
+    Pair %in% c("Am/Trento", "Amᵀʳᵉⁿᵗᵒ") ~ "Trento",
+    Pair %in% c("Am/Bal", "Amᴮᵃˡ") ~ "Bal",
+    Pair %in% c("Am/Par6", "Amᴾᵃʳ⁶") ~ "Par6",
+    TRUE ~ NA_character_ )) %>% 
+  dplyr::mutate(M_strain = factor(M_strain, level=c("Control W-","Trento", "Bal", "Par6", "Rennes")))
+
+
+#Add line type
+fitted_data <- fitted_data |>
+  dplyr::mutate(LineType = dplyr::case_when(
+    Pair %in% c("Control W-","Am/Trento", "Am/Bal", "Am/Par6", "Am/Rennes") ~ "Natural lines",
+    Pair %in% c("Control W- ","Amᵀʳᵉⁿᵗᵒ", "Amᴮᵃˡ", "Amᴾᵃʳ⁶","Amᴿᵉⁿⁿᵉˢ") ~ "Introgressed lines",
+    TRUE ~ NA_character_ )) %>% 
+  dplyr::mutate(LineType = factor(LineType, level=c("Natural lines", "Introgressed lines")))
+
+#Load observed hatch rate
+observed_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+## Cross to used for observed hatch rate
+u <- unique(crosses$uninf_strain)              # "Am"
+strain_order <- crosses$inf_strain                # or e.g. c("Bal", "Trento", "Rennes", "Par6")
+cross_order <- c(paste0(u, "x", u),
+                 unlist(lapply(strain_order, \(s) c(paste0(u, "x", s),     # AmxS (test cross)
+                                                    paste0(s, "x", u),     # SxAm
+                                                    paste0(s, "x", s)))))  # SxS
+
+cross_order
+
+# Filter only data frot eh plot
+observed_data <- observed_data |>
+  dplyr::filter(CrossType %in% cross_order)|>
+  dplyr::mutate(Year=as.factor(Year))
+
+## Add the CrossTypeLabel with the right number of replicates
+observed_data <- observed_data |>
+  dplyr::rename(CrossTypeLabelold=CrossTypeLabel)|>
+  dplyr::left_join(fitted_data[, c("Pair", "LineType", "M_strain","CrossTypeLabel", "CrossType")], by="CrossType")
+
+# One row per infected strain and allowed batch
+blocks <- block |>
+  dplyr::mutate(Batch = strsplit(block, "_")) |>
+  tidyr::unnest(Batch) |>
+  dplyr::mutate(Batch = as.integer(Batch)) |>
+  dplyr::select(infstrain, Batch)|>
+  dplyr::mutate(Pair_block=paste(infstrain, Batch, sep="_"))|>
+  dplyr::select(infstrain, Pair_block)
+
+
+```
+
+## Plot Figure SX
+```{r}
+#Create bar plot with individual data points
+hatchrateplotSX <- fitted_data |>
+  ggplot2::ggplot(aes(x = CrossTypeLabel, y = Estimate, fill = Cross), size=100) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.5., ymax = X97.5.), width = 0.4) +
+  ggplot2::geom_point(data = observed_data, aes(x = CrossTypeLabel, y = hatchrate, color = Year), position = position_jitter(width = 0.15, height = 0), size =3) + 
+  ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.1), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
+  scale_fill_manual(values = c("Control cross 1 W- x W-" = "#00bfc4", "Test cross W- x W+" = "#F8766D", "Control cross 2 W+ x W-" = "#7cae00", "Control cross 3 W+ x W+" = "#c77cff")) +
+  scale_color_manual(values = c ("2023" = "#931F1D", "2024" = "#00008B")) + 
+  labs(x = "Cross", y = "Hatch rate", title = "Observed hatch rate and fitted hatch rate excluding structural zeros for each cross (female strain x male strain)", fill = "Cross type") +
+  #ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
+  ggplot2::facet_wrap(~ LineType + M_strain, ncol = 5, scales = "free_x", strip.position = "top", drop=FALSE, labeller = labeller(
+          LineType = ~ paste("", .),
+          M_strain = ~ paste("", .),
+          .multi_line = TRUE))+
+  theme_grey(base_size = 30) +
+  theme(plot.margin = margin(20, 20, 20, 20, "pt"),
+        #strip.background = element_blank(),  # Removes background from facet labels
+        strip.placement = "outside", 
+        axis.text.x = element_text(size=30, angle = 45, hjust = 1), #modify the text of the axis x
+        axis.text=element_text(size=20),
+        title = element_text(size = 0), #face="bold" makes it bold
+        axis.title=element_text(size=35,face="bold"),
+        legend.text=element_text(size = 30),
+        legend.title = element_text(size = 30),
+        legend.position = "top",
+        strip.text.x = element_text(size =45),
+        panel.grid.major.y = element_line(linetype = "dotted", color = "grey")) + # text for the subtitles/strips
+        theme(
+          panel.background = element_rect(fill = "white"),
+          legend.background = element_rect(fill = "white"),
+          legend.position = "top"
+          )+ylim(0, 1.1)
+
+hatchrateplotSX
+
+#save bar plot
+title_plot <- "bar_S2_intrtest.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   hatchrateplotSX, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)
 ```
 
