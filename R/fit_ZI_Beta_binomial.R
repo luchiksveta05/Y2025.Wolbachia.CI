@@ -14,7 +14,7 @@
 
 
 # Define the function
-fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500) {
+fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3) {
 
   ## Extract the name of the uninfected and infected strains
   strains <- crosses[2:3]
@@ -105,6 +105,8 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
 
   ## Compare model based on AICc
   modelaicc <- data.frame(MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7))
+  modelaicc <- modelaicc |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, dec_places)))
 
   ## Add model variables
   modelaicc <- data.frame(model_var = as.factor(rownames(modelaicc)), modelaicc)
@@ -144,6 +146,9 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
     dplyr::mutate(CrossTypeLabel = paste0(CrossType, " (", n, ")"))
 
   print(confint)
+  cols <- c("Estimate", "2.5 %", "97.5 %")
+  confint <- confint|>
+    dplyr::mutate(dplyr::across(dplyr::all_of(cols), \(x) round(as.numeric(x), dec_places)))
 
   confintp1 <- confint[grepl("zi", rownames(confint)),]
   confintp2 <- confint[grepl("cond", rownames(confint)),]

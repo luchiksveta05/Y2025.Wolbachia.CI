@@ -1,13 +1,13 @@
-"continent";"uninfstrain";"infstrain";"type";"n";"CrossType";"Estimate";"2.5%";"97.5%";"Cross";"CrossTypeLabel"
-"Europe";"Am";"Trento";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";"0.479990507160251";"0.362960039204357";"0.596502917924056";NA;"TestCrossvs.CtrlCross1 (NA)"
-"Europe";"Am";"Trento";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";"0.441857865176748";"0.30299607599317";"0.564844190764114";NA;"TestCrossvs.CtrlCross2 (NA)"
-"Europe";"Am";"Trento";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";"0.438337425946505";"0.307258353255214";"0.568209270439053";NA;"TestCrossvs.CtrlCross3 (NA)"
-"Europe";"Am";"Bal";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";"0.676713072194244";"0.58583358375354";"0.755500984540715";NA;"TestCrossvs.CtrlCross1 (NA)"
-"Europe";"Am";"Bal";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";"0.710313331140398";"0.631377575538864";"0.785294196598772";NA;"TestCrossvs.CtrlCross2 (NA)"
-"Europe";"Am";"Bal";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";"0.653737866424412";"0.531755192646561";"0.752466960571853";NA;"TestCrossvs.CtrlCross3 (NA)"
-"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";"0.120797883700806";"0.000950747731548716";"0.233684765355954";NA;"TestCrossvs.CtrlCross1 (NA)"
-"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";"0.182808210843861";"0.078403692786791";"0.285979746570466";NA;"TestCrossvs.CtrlCross2 (NA)"
-"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";"0";"0";"0.146059168067042";NA;"TestCrossvs.CtrlCross3 (NA)"
-"Europe";"Am";"Par6";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";"0.162977067529057";"0.00783234456366002";"0.303797022591928";NA;"TestCrossvs.CtrlCross1 (NA)"
-"Europe";"Am";"Par6";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";"0.18443172667198";"0.0199484179461402";"0.326270036518331";NA;"TestCrossvs.CtrlCross2 (NA)"
-"Europe";"Am";"Par6";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";"0";"0";"0.209632636635011";NA;"TestCrossvs.CtrlCross3 (NA)"
+"continent";"uninfstrain";"infstrain";"type";"n";"CrossType";"Estimate";"2.5%";"97.5%"
+"Europe";"Am";"Trento";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";0.48;0.365;0.597
+"Europe";"Am";"Trento";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";0.442;0.306;0.566
+"Europe";"Am";"Trento";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";0.438;0.312;0.558
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";0.677;0.581;0.753
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";0.71;0.628;0.78
+"Europe";"Am";"Bal";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";0.654;0.512;0.745
+"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";0.121;0;0.21
+"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";0.183;0.06;0.278
+"Europe";"Am";"Rennes";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";0;0;0.129
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross1";NA;"TestCrossvs.CtrlCross1";0.163;0.017;0.319
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross2";NA;"TestCrossvs.CtrlCross2";0.184;0;0.34
+"Europe";"Am";"Par6";"TestCrossvs.CtrlCross3";NA;"TestCrossvs.CtrlCross3";0;0;0.211

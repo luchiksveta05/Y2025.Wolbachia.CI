@@ -262,7 +262,7 @@ europe <- europe[c(1, 2, 3, 11)]
 crosses <- data.frame(continent=rep("Europe", 4), uninf_strain="Am" , inf_strain=c("Trento", "Bal", "Rennes", "Par6"))
 
 ## Fit all models on all the crosses function with nbootsim = 500
-results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data, nbootsim = 500)
+results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data, nbootsim = 500, dec_places=3)
 
 ## Extract the results from all models
 crossnum <- 1:nrow(crosses)
@@ -276,6 +276,8 @@ AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain
 overdisp <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintdisp"))
 
 CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
+CI <- CI|>
+  dplyr::select(-c(CrossTypeLabel, Cross))
 
 block <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="block"))
 
