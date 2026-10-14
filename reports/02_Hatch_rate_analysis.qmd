@@ -402,7 +402,7 @@ hatchrateplot1 <- fitted_data |>
 
 
 #save bar plot
-title_plot <- "barblock1-7_Europe.pdf"
+title_plot <- "barblocks1-7_Europe.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplot1, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)
