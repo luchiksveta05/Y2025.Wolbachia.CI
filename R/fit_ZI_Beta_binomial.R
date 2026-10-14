@@ -5,6 +5,8 @@
 #' @param female name of the column in data which corresponds to the female strain in the cross (default: "Female")
 #' @param male name of the column in data which corresponds to the male strain in the cross (default: "Male")
 #' @param nbootsim number of simulations for parametric bootstrapping (default: nbootsim=500)
+#' @param dec_places number of decimal places for the output table (default: dec_places=3)
+#' @param saturated_model_estimates return estimates and 95%-confidence interval from saturated model and not from the best model with lowest AICc  (default: saturated_model_estimates=TRUE)
 #'
 #' @return A list with the different outpus (AICc table, parameters estimate and confidence intervals for the best model, etc.)
 #'
@@ -14,7 +16,7 @@
 
 
 # Define the function
-fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3) {
+fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=TRUE) {
 
   ## Extract the name of the uninfected and infected strains
   strains <- crosses[2:3]
@@ -79,32 +81,17 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
 
   print(datCrossType)
 
-  ## Fit null model
-  m0 <- glmmTMB::glmmTMB(prop~ 1, ziformula=~1 , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  ## Null model
+  m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 
-  ## cross type effect on hatch rate (p2)
-  m1 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~1 , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  ## CI model
+  m1 <- glmmTMB::glmmTMB(prop ~ CI_test, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 
-  ## cross type effect on mating probability (p1)
-  m2 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~ -1 + CrossType , dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## cross type effect on hatch rate (p2) and mating probability (p1)
-  m3 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## Fit null model + differences in overdispersion among CrossTypes
-  m4 <- glmmTMB::glmmTMB(prop~ 1, ziformula=~1 , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## cross type effect on hatch rate (p2) + differences in overdispersion among CrossTypes
-  m5 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~1 , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## cross type effect on mating probability (p1) + differences in overdispersion among CrossTypes
-  m6 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~ -1 + CrossType , dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## cross type effect on hatch rate (p2) and mating probability (p1) + differences in overdispersion among CrossTypes
-  m7 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  ## Saturated model
+  m2 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 
   ## Compare model based on AICc
-  modelaicc <- data.frame(MuMIn::model.sel(m0, m1, m2, m3, m4, m5, m6, m7))
+  modelaicc <- data.frame(MuMIn::model.sel(m0, m1, m2))
   modelaicc <- modelaicc |>
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, dec_places)))
 
@@ -113,7 +100,7 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
   levels(modelaicc$model_var) <- c("zi~int|bin~int|disp~int", "zi~int|bin~CrossType|disp~int", "zi~CrossType|bin~int|disp~int", "zi~CrossType|bin~CrossType|disp~int", "zi~int|bin~int|disp~CrossType", "zi~int|bin~CrossType|disp~CrossType", "zi~CrossType|bin~int|disp~CrossType", "zi~CrossType|bin~CrossType|disp~CrossType")
 
   ## Get name of best model
-  bestmodelname <- rownames(modelaicc)[1]
+  bestmodelname <- ifelse(saturated_model_estimates, "m2", rownames(modelaicc)[1])
   bestmodel <- get(bestmodelname)
 
   # This step helps bootMer find the data
@@ -135,6 +122,7 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
 
   ## Add cross
   confint$Cross <- c(rep(c("Control cross 1 W- x W-", "Test cross W- x W+", "Control cross 2 W+ x W-", "Control cross 3 W+ x W+"), times=(nrow(confint)-3)/4), rep(NA, 3))
+  confint$CI_test <- c(rep(c("Control_cross", "Test_cross", "Control_cross", "Control_cross"), times=(nrow(confint)-3)/4), rep(NA, 3))
 
   ## Add sample size
   n <- tapply(dat$CrossType, dat$CrossType, length)
