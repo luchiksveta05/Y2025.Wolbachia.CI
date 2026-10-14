@@ -81,31 +81,40 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
 
   print(datCrossType)
 
-  ## Null model
-  m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  ## List all models
+  forms <- list(
+    m0   = prop ~ 1, ## Null model
+    m1   = prop ~ CI_test, ## CI model
+    m2   = prop ~ -1 + CrossType) ## Saturated model
 
-  ## CI model
-  m1 <- glmmTMB::glmmTMB(prop ~ CI_test, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+  ## Fit all models
+  mods <- lapply(forms, function(f)
+    glmmTMB::glmmTMB(update(f, prop ~ .),
+                     ziformula = ~-1 +CrossType, dispformula = ~ -1+ CrossType, family = glmmTMB::betabinomial(), weights = sum_eggcount_corr, data = dat))
 
-  ## Saturated model
-  m2 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
-
-  ## Compare model based on AICc
-  modelaicc <- data.frame(MuMIn::model.sel(m0, m1, m2))
+  ## Compare models based on AICc
+  modelaicc <- data.frame(MuMIn::model.sel(mods))
   modelaicc <- modelaicc |>
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, dec_places)))
 
+  ## Check convergence
+  conv <- sapply(mods, \(x) x$fit$convergence)
+  pd   <- sapply(mods, \(x) x$sdr$pdHess)
+  modelaicc$convergence <- ifelse(conv[rownames(modelaicc)] == 0, "converged", "not_converged")
+  modelaicc$Hessian     <- ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite")
+
   ## Add model variables
-  modelaicc <- data.frame(model_var = as.factor(rownames(modelaicc)), modelaicc)
-  levels(modelaicc$model_var) <- c("zi~int|bin~int|disp~int", "zi~int|bin~CrossType|disp~int", "zi~CrossType|bin~int|disp~int", "zi~CrossType|bin~CrossType|disp~int", "zi~int|bin~int|disp~CrossType", "zi~int|bin~CrossType|disp~CrossType", "zi~CrossType|bin~int|disp~CrossType", "zi~CrossType|bin~CrossType|disp~CrossType")
+  labels <- c(m0 = "null (intercept)", m1 = "CI (test vs control crosses)", m2 = "saturated (cross type)")
+  modelaicc <- data.frame(model = rownames(modelaicc), model_var = labels[rownames(modelaicc)], modelaicc)
 
   ## Get name of best model
   bestmodelname <- ifelse(saturated_model_estimates, "m2", rownames(modelaicc)[1])
-  bestmodel <- get(bestmodelname)
+  bestmodel <- mods[[bestmodelname]]
 
   # This step helps bootMer find the data
   #assign("dat", dat, envir = .GlobalEnv)
   bestmodel$call$data <- dat
+  bestmodel$call$formula <- formula(bestmodel)
 
   ## Refit model nsim times
   b1 <- lme4::bootMer(bestmodel, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=dat), nsim=nbootsim, .progress="txt")
@@ -142,6 +151,9 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
   confintp2 <- confint[grepl("cond", rownames(confint)),]
   confintdisp<- confint[grepl("phi|rho|sd_beta_bin", rownames(confint)),]
   confintCI <- confint[grepl("TestCrossvs", rownames(confint)),]
+
+  confintCI <- confintCI |>
+    dplyr::select(-c(CI_test, CrossTypeLabel, Cross, n))
 
   return(list(continent=as.vector(crosses)[1], uninf_strain=as.vector(strains)[1], inf_strain=as.vector(strains)[2], Observed_hatch_rate=datCrossType, modelaicc=modelaicc, confintp1=confintp1, confintp2=confintp2, confintdisp=confintdisp, confintCI=confintCI, block=paste(sort(block), collapse = "_" )))
 

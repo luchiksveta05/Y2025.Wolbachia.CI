@@ -68,11 +68,10 @@ table(z)
 sum(data$LarvaeCount == 0)
 nrow(data)
 
-
 ```
 
 
-# Fit models to test genetic effects with betabinomial
+# Fit models to test genetic effects with betabinomial with unaggregated data (not used for the paper)
 ## Check structure of zero inflation
 ```{r, eval=TRUE}
 
@@ -212,22 +211,12 @@ MuMIn::model.sel(mods)
 anova(mods$m1, mods$msat)
 ## Cl: The four genetic effects describe the six cross-type means almost perfectly, so the genetic model is an adequate description of the six types of crosses.
 
-aic <- as.data.frame (MuMIn::model.sel(mods))
-
-write.csv(
-  tibble::rownames_to_column(as.data.frame(aic), "model"),
-  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_X_Y.csv"),
-  row.names = FALSE
-)
-
-
-
 ```
 
 
 # Fit models to test genetic effects with betabinomial with aggregate data
 ## Check structure of zero inflation
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 #Load the data 
 merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID_Batch89.csv"), sep=";", header = TRUE))
 
@@ -331,7 +320,7 @@ cbind(observed = obs0,
 ```
 
 ## Model selection
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 
 ## List all models
 forms <- list(
@@ -361,19 +350,19 @@ t(sapply(mods, function(m) c(negLL = m$fit$objective,
                              conv = m$fit$convergence, pdHess = m$sdr$pdHess)))
 
 ## Compare AICc
-MuMIn::model.sel(mods[names(mods) != "msat"])
+MuMIn::model.sel(mods)
 
 ## Check lack of fit
 anova(mods$m1, mods$msat)
 ## Cl: The four genetic effects describe the six cross-type means almost perfectly, so the genetic model is an adequate description of the six types of crosses.
 
-aic <- as.data.frame (MuMIn::model.sel(mods[names(mods) != "msat"]))
+aic <- as.data.frame (MuMIn::model.sel(mods))
 
-#write.csv(
-#  tibble::rownames_to_column(as.data.frame(aic), "model"),
-#  file = file.path(here::here(), "data", "derived_data", #"AICc_genetic_effect_F1_F2_X_Y.csv"),
-#  row.names = FALSE
-#)
+write.csv(
+  tibble::rownames_to_column(as.data.frame(aic), "model"),
+  file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_X_Y.csv"),
+  row.names = FALSE
+)
 
 m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = sum_eggcount_corr)
 logLik(m9)

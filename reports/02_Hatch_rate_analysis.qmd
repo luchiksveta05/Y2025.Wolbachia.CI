@@ -203,7 +203,7 @@ round(sqrt(mu * (1 - mu) * rho), 3)
 
 ## Null model
 m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
- 
+
 ## CI model
 m1 <- glmmTMB::glmmTMB(prop ~ CI_test, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
  
@@ -260,8 +260,6 @@ AICC <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain
 overdisp <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintdisp"))
 
 CI <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="confintCI"))
-CI <- CI|>
-  dplyr::select(-c(CrossTypeLabel, Cross))
 
 block <- do.call(rbind, lapply(crossnum, FUN=extract_results, outputper_infstrain=results, parameter="block"))
 
