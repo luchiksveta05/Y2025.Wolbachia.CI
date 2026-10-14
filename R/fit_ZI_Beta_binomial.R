@@ -176,7 +176,20 @@ extract_model_logit_scale <- function(.){
 }
 
 
-# Extract estimates from a zero-inflated (beta-)binomial model
+#
+#' Extract estimates from a zero-inflated (beta-)binomial model
+#' @description Function to extract estimates from a zero-inflated (beta-)binomial model when using lme4::bootMer for bootstrapping
+#' @param estimateCI estimate CI from the four cross types
+#' @param estimate_overdisp estimate overdispersion in the beta-binomial distribution
+#' @param estimate_response make prediction on the response scale (1-p1)*p2
+#' @param newdata name of the original dataframe to pass it to the function
+#' @return A dataframe with the estimates of the different parameters
+#'
+#' @export
+#'
+#' @examples
+
+
 extract_model <- function(., estimateCI=FALSE, estimate_overdisp=FALSE, estimate_response=FALSE, newdata){
 
 

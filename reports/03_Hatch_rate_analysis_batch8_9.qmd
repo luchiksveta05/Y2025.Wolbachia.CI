@@ -174,6 +174,7 @@ cbind(observed = obs0,
 
 ## Model selection
 ```{r, eval=TRUE}
+dat_g$prop <- dat_g$LarvaeCount / dat_g$EggCountCorr
 
 ## List all models
 forms <- list(
@@ -196,10 +197,10 @@ forms <- list(
 
 ## Fit models
 mods <- lapply(forms, function(f)
-  glmmTMB::glmmTMB(update(f, cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ . + (1 | CoupleID)),
-                   ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g))
+  glmmTMB::glmmTMB(update(f, prop ~ . + (1 | CoupleID)),
+                   ziformula = ~1, family = glmmTMB::betabinomial(), weights = EggCountCorr, data = dat_g))
 
-## Only m0 and m11 have convergence issues
+## Only m0, m11 and m13 have convergence issues
 t(sapply(mods, function(m) c(negLL = m$fit$objective,
                              conv = m$fit$convergence, pdHess = m$sdr$pdHess)))
 
@@ -214,7 +215,7 @@ anova(mods$m1, mods$msat)
 ```
 
 
-# Fit models to test genetic effects with betabinomial with aggregate data
+# Fit models to test genetic effects with betabinomial with aggregated data
 ## Check structure of zero inflation
 ```{r, eval=TRUE}
 #Load the data 
@@ -266,17 +267,17 @@ dat_g$Y <- as.numeric(as.character(dat_g$Y))
 unique(dat_g[, c("CrossType", "alpha1", "dominance", "X", "Y")])
 
 
-msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+msat_betabin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType,
                             ziformula = ~0, family = glmmTMB::betabinomial(), data = dat_g)
 summary(msat_betabin_nozi)
 
 ## Model with zero inflation
-msat_betabin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+msat_betabin_zi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType,
                             ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
 c(negLL = msat_betabin_nozi$fit$objective, pdHess = msat_betabin_nozi$sdr$pdHess)
 
 
-msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
+msat_betabin_zi_CrossType <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType,
                             ziformula = ~1+CrossType, family = glmmTMB::betabinomial(), data = dat_g)
 
 msat_bin_nozi <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + (1 | CoupleID),
@@ -343,11 +344,8 @@ forms <- list(
 
 ## Fit models
 mods <- lapply(forms, function(f)
-  glmmTMB::glmmTMB(update(f, cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ . + (1 | CoupleID)),
-                   ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g))
-## No convergence issue
-t(sapply(mods, function(m) c(negLL = m$fit$objective,
-                             conv = m$fit$convergence, pdHess = m$sdr$pdHess)))
+  glmmTMB::glmmTMB(update(f, prop ~ .),
+                   ziformula = ~1, family = glmmTMB::betabinomial(), weights = sum_eggcount_corr, data = dat_g))
 
 ## Compare AICc
 MuMIn::model.sel(mods)
@@ -358,19 +356,19 @@ anova(mods$m1, mods$msat)
 
 aic <- as.data.frame (MuMIn::model.sel(mods))
 
+## Check convergence
+conv <- sapply(mods, \(x) x$fit$convergence)
+pd   <- sapply(mods, \(x) x$sdr$pdHess)
+aic$convergence <- ifelse(conv[rownames(aic)] == 0, "converged", "not_converged")
+aic$Hessian     <- ifelse(pd[rownames(aic)], "positive_definite", "non_positive_definite")
+
+aic
+
 write.csv(
   tibble::rownames_to_column(as.data.frame(aic), "model"),
   file = file.path(here::here(), "data", "derived_data", "AICc_genetic_effect_F1_F2_X_Y.csv"),
   row.names = FALSE
 )
-
-m9 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = sum_eggcount_corr)
-logLik(m9)
-
-#Prediction of hatch rate depending on the proportion of Par6 alleles in the genome
-newdata <- expand.grid(alpha1 = c(-1, 0, 1), dominance = -1, sum_eggcount_corr=100)
-newdata$prop_Par6 <- (newdata$alpha1 + 1)/2
-newdata$pred.cond <- predict(m9, type="conditional", re.form=NA, newdata=newdata)
 
 ```
 
@@ -383,7 +381,7 @@ dat_g$vgroup4 <- factor(ifelse(grepl("F2", dat_g$CrossType), "F2",
                                sub("Amx", "", dat_g$CrossType))))   # Bal, Par6, F1, F2
 
 ## Model with a different variance only for parents, F1s and F2s
-m_var4 <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vgroup4 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+m_var4 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + diag(0 + vgroup4 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
 
 glmmTMB::VarCorr(m_var4)            # between-male variance for Bal, Par6, F1, F2
 
@@ -393,7 +391,7 @@ dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
 
 ## Model with a different variance only for F2s vs. the other crosstypes
 m_var <- glmmTMB::glmmTMB(
-  cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vargroup | CoupleID),
+  cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + diag(0 + vargroup | CoupleID),
   ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
 summary(m_var)
 
@@ -433,13 +431,13 @@ males <- unique(dat_g[, c("CoupleID", "CrossType", "vargroup")])
 males$pred <- predict(m_var, newdata = males, type = "conditional", re.form = NULL)
 
 # Raw male hatch rate (pooled over his dishes), for comparison
-raw <- aggregate(cbind(LarvaeCount, EggCountCorr) ~ CoupleID, data = dat_g, FUN = sum)
-males <- merge(males, raw, by = "CoupleID")
-males$raw <- males$LarvaeCount / males$EggCountCorr
+#raw <- aggregate(cbind(LarvaeCount, EggCountCorr) ~ CoupleID, data = dat_g, FUN = sum)
+#males <- merge(males, raw, by = "CoupleID")
+#males$raw <- males$LarvaeCount / males$EggCountCorr
 
 # Cross-type means with 95% CI (population level)
 ct <- data.frame(CrossType = ord, CoupleID = NA,
-                 vargroup = factor(as.integer(grepl("F2", ord))))
+               vargroup = factor(as.integer(grepl("F2", ord))))
 p  <- predict(m_var, newdata = ct, type = "link", re.form = NA, se.fit = TRUE)
 ct$fit <- plogis(p$fit)
 ct$lo  <- plogis(p$fit - 1.96 * p$se.fit)
@@ -526,7 +524,7 @@ sapply(1:4, function(k) chisq.test(obs, p = props[, k],
 library(rlang)
 
 # Fit msat model for all the data in Batch8 and Batch9
-msat <- glmmTMB::glmmTMB(prop ~ -1 + CrossType + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = data, weights = EggCountCorr)
+msat <- glmmTMB::glmmTMB(prop ~ -1 + CrossType, ziformula = ~1, family = glmmTMB::betabinomial(), data = merged_data, weights = sum_eggcount_corr)
 summary(msat)
 
 #Estimation of hatch rate from binomial part of the model
@@ -535,11 +533,24 @@ summary(msat)
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
 set.seed(123)
-b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimateCI = FALSE, estimate_hatche_rate=TRUE), nsim=500, .progress="txt")
+b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=merged_data), nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
-confint_msat <- data.frame(bCI_tab(b=b1)) |>
-  tibble::rownames_to_column(var = "CrossType")
+confint_msat <- data.frame(bCI_tab(b=b1), check.names = FALSE)
+
+## Add sample size
+n <- tapply(merged_data$CrossType, merged_data$CrossType, length)
+confint_msat$n <- rep(n, times=nrow(confint_msat)/length(n))
+confint_msat <- confint_msat|>
+    dplyr::relocate(n)
+
+## Keep only 3 decimal places
+cols <- c("Estimate", "2.5 %", "97.5 %")
+confint_msat <- confint_msat|>
+  dplyr::mutate(dplyr::across(dplyr::all_of(cols), \(x) round(as.numeric(x), 3)))
+
+confint_msat <- confint_msat|>
+  tibble::rownames_to_column(var = "Parameters")
 
 ## Export files for the Table S7
 write.table(x = confint_msat, file=file.path(here::here(), "data", "derived_data", "confint_saturated_model_msat.csv"), sep=";", row.names = FALSE)
@@ -551,9 +562,8 @@ write.table(x = confint_msat, file=file.path(here::here(), "data", "derived_data
 library(rlang)
 
 # Fit m1 model for all the data in Batch8 and Batch9
-m1 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + X + Y + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = EggCountCorr)
+m1 <- glmmTMB::glmmTMB(prop ~ alpha1 + dominance + X + Y + (1 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g, weights = sum_eggcount_corr)
 summary(m1)
-
 
 #Estimation of hatch rate from binomial part of the model
 (p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
@@ -564,10 +574,21 @@ set.seed(123)
 b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
-confint_full_model <- data.frame(bCI_tab(b=b1))
+confint_full_model <- data.frame(bCI_tab(b=b1), check.names = FALSE)
 
-confint_full_model <- confint_full_model |>
-  tibble::rownames_to_column(var = "Effects")
+## Add sample size
+n <- tapply(dat_g$CrossType, dat_g$CrossType, length)
+confint_full_model$n <- rep(n, times=nrow(confint_full_model)/length(n))
+confint_full_model <- confint_full_model|>
+    dplyr::relocate(n)
+
+## Keep only 3 decimal places
+cols <- c("Estimate", "2.5 %", "97.5 %")
+confint_full_model <- confint_full_model|>
+  dplyr::mutate(dplyr::across(dplyr::all_of(cols), \(x) round(as.numeric(x), 3)))
+
+confint_full_model <- confint_full_model|>
+  tibble::rownames_to_column(var = "Parameters")
 
 ## Export files for the table S7
 write.table(x = confint_full_model, file=file.path(here::here(), "data", "derived_data", "confint_full_model_m1.csv"), sep=";", row.names = FALSE)
@@ -578,7 +599,7 @@ write.table(x = confint_full_model, file=file.path(here::here(), "data", "derive
 ```{r, eval=FALSE}
 
 #Prediction of hatch rate depending on the proportion of Par6 alleles in the genome
-newdata <- data.frame(CrossType=c("AmxBal", "AmxF1 BalxPar6", "AmxF1 Par6xBal", "AmxF2 BalxPar6xBalxPar6", "F2 Par6xBalxPar6xBal", "AmxPar6"), alpha1 = c(-1, 0, 0, 0, 0, 1), dominance=c(0, 1, 1, 0.5, 0.5, 1), EggCountCorr=100)
+newdata <- data.frame(CrossType=c("AmxBal", "AmxF1 BalxPar6", "AmxF1 Par6xBal", "AmxF2 BalxPar6xBalxPar6", "F2 Par6xBalxPar6xBal", "AmxPar6"), alpha1 = c(-1, 0, 0, 0, 0, 1), dominance=c(0, 1, 1, 0.5, 0.5, 1), sum_eggcount_corr=100)
 
 newdata$prop_Par6 <- (newdata$alpha1 + 1)/2
 newdata$pred.cond <- predict(m9, type="conditional", re.form=NA, newdata=newdata)
