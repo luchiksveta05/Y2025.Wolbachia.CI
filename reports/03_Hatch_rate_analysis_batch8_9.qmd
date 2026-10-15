@@ -372,152 +372,6 @@ write.csv(
 
 ```
 
-
-# Castle-Wright estimation
-## Check that the variance is homogenous in parental and F1 crosses
-```{r, eval=TRUE}
-dat_g$vgroup4 <- factor(ifelse(grepl("F2", dat_g$CrossType), "F2",
-                        ifelse(grepl("F1", dat_g$CrossType), "F1",
-                               sub("Amx", "", dat_g$CrossType))))   # Bal, Par6, F1, F2
-
-## Model with a different variance only for parents, F1s and F2s
-m_var4 <- glmmTMB::glmmTMB(cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + diag(0 + vgroup4 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
-
-glmmTMB::VarCorr(m_var4)            # between-male variance for Bal, Par6, F1, F2
-
-
-## Variable to fit different variances for F2 vs. the other crosstypes
-dat_g$vargroup <- as.factor(grepl("F2", dat_g$CrossType)*1)
-
-## Model with a different variance only for F2s vs. the other crosstypes
-m_var <- glmmTMB::glmmTMB(
-  cbind(sum_larvacount, sum_eggcount_corr - sum_larvacount) ~ CrossType + diag(0 + vargroup | CoupleID),
-  ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
-summary(m_var)
-
-## No significant differences between variances in the parents and F1 so we can estimate a sigle parameter
-anova(m_var, m_var4)
-
-## F2 variance is not significantly larger (but low power as only 29 F2 crosses)
-anova(update(m_var, . ~ CrossType + (1 | CoupleID)), m_var)
-
-```
-
-## Compute estimates
-```{r, eval=TRUE}
-
-vc   <- glmmTMB::VarCorr(m_var)$cond$CoupleID
-s2E  <- vc["vargroup0", "vargroup0"]          # between-male variance, non-F2 groups
-s2F2 <- vc["vargroup1", "vargroup1"]          # between-male variance, F2
-b    <- glmmTMB::fixef(m_var)$cond            # check names with names(b)
-delta <- (b["(Intercept)"]) - (b["(Intercept)"] + b["CrossTypeAmxPar6"])   # Bal - Par6 (Bal = reference)
-
-s2S <- s2F2 - s2E
-n_e <- delta^2 / (8 * s2S)
-c(s2E = s2E, s2F2 = s2F2, s2S = s2S, n_e = n_e)
-```
-
-
-## Plotting the F2 male random effects (BLUPS) against the Bal and F1 means
-```{r, eval=TRUE}
-## Order of the male genotypes on the plot
-ord <- c("AmxBal", "AmxF1 Par6xBal", "AmxF1 BalxPar6",
-         "AmxF2 Par6xBalxPar6xBal", "AmxF2 BalxPar6xBalxPar6", "AmxPar6")
-
-# One row per male (couple)
-males <- unique(dat_g[, c("CoupleID", "CrossType", "vargroup")])
-
-# Model-based male hatch rate: cross-type mean + couple effect, excluding structural zeros
-males$pred <- predict(m_var, newdata = males, type = "conditional", re.form = NULL)
-
-# Raw male hatch rate (pooled over his dishes), for comparison
-#raw <- aggregate(cbind(LarvaeCount, EggCountCorr) ~ CoupleID, data = dat_g, FUN = sum)
-#males <- merge(males, raw, by = "CoupleID")
-#males$raw <- males$LarvaeCount / males$EggCountCorr
-
-# Cross-type means with 95% CI (population level)
-ct <- data.frame(CrossType = ord, CoupleID = NA,
-               vargroup = factor(as.integer(grepl("F2", ord))))
-p  <- predict(m_var, newdata = ct, type = "link", re.form = NA, se.fit = TRUE)
-ct$fit <- plogis(p$fit)
-ct$lo  <- plogis(p$fit - 1.96 * p$se.fit)
-ct$hi  <- plogis(p$fit + 1.96 * p$se.fit)
-
-ref <- ct[ct$CrossType %in% c("AmxBal", "AmxPar6"), ]
-ref$lab <- sub("Amx", "", ref$CrossType)
-ref$ylab <- ref$fit + ifelse(ref$lab == "Bal", 0.13, 0)   # raise Bal label only
-#ref$xlab  <- ifelse(ref$lab == "Bal", 0.6, 6.4)
-#ref$hjust <- ifelse(ref$lab == "Bal", 0, 1)
-
-males$CrossType <- factor(males$CrossType, levels = ord)
-ct$CrossType    <- factor(ct$CrossType,    levels = ord)
-males$Generation <- ifelse(grepl("F2", males$CrossType), "F2",
-                    ifelse(grepl("F1", males$CrossType), "F1", "Parental"))
-
-p <- ggplot(males, aes(x = CrossType, y = pred)) +
-  geom_hline(data = ref, aes(yintercept = fit), linetype = "dashed", colour = "grey40") +
-  geom_jitter(aes(colour = Generation), width = 0.12, height = 0, size = 2.2, alpha = 0.75) +
-  geom_pointrange(data = ct, aes(y = fit, ymin = lo, ymax = hi),
-                  position = position_nudge(x = 0.3), size = 0.4) +
-  geom_label(data = ref, aes(x = 0.6, y = ylab, label = lab),
-             hjust = 0, vjust = -0.3, size = 3.5, colour = "grey30",
-             fill = "white", label.size = 0, label.padding = unit(0.1, "lines")) +
-  scale_x_discrete(labels = function(x) sub("Amx", "", x)) +
-  scale_y_continuous("Hatch rate excluding structural zeros", limits = c(0, 1)) +
-  scale_colour_manual(values = c(Parental = "grey50", F1 = "#1b9e77", F2 = "#d95f02")) +
-  labs(x = "Male genotype", colour = NULL) +
-  theme_classic(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "top")
-#save bar plot
-title_plot <- "BLUPS_Par6_Bal_F1_F2.png"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   p, base_height = 12/cm(1),
-                   base_width = 10/cm(1), dpi = 1200)
-```
-
-## Simulations to check how environmental variation affect the position of F2 relative to the parents
-```{r}
-f2 <- males[grepl("F2", males$CrossType), ]
-lp <- qlogis(f2$pred)
-
-centres <- qlogis(c(
-  Bal  = ct$fit[ct$CrossType == "AmxBal"],
-  F1   = mean(ct$fit[grepl("F1", ct$CrossType)]),
-  Par6 = ct$fit[ct$CrossType == "AmxPar6"]))
-
-f2$class <- factor(names(centres)[apply(abs(outer(lp, centres, "-")), 1, which.min)],
-                   levels = c("Bal", "F1", "Par6"))
-obs <- table(f2$class)
-obs
-
-# 1:2:1 (one locus, incomplete dominance)
-chisq.test(obs, p = c(1, 2, 1) / 4, simulate.p.value = TRUE, B = 1e4)
-# Two equal loci, additive (extremes 1/16 each)
-chisq.test(obs, p = c(1, 14, 1) / 16, simulate.p.value = TRUE, B = 1e4)
-
-
-mid <- mean(centres[c("Bal", "Par6")])
-a   <- unname((centres["Bal"] - centres["Par6"]) / 2)
-d   <- unname(centres["F1"] - mid)
-
-sim_props <- function(nloci, sd_e = 0.46, n = 1e5) {
-  x <- matrix(sample(c(-1, 0, 1), n * nloci, TRUE, c(0.25, 0.5, 0.25)), n)   # F2 genotypes per locus
-  g <- mid + a * rowMeans(x) + d * rowMeans(x == 0)   # equal-effect loci, same dominance ratio
-  y <- g + rnorm(n, 0, sd_e)
-  cls <- factor(names(centres)[apply(abs(outer(y, centres, "-")), 1, which.min)],
-                levels = names(centres))
-  as.numeric(prop.table(table(cls)))
-}
-
-set.seed(1)
-props <- sapply(1:4, sim_props)
-colnames(props) <- paste(1:4, "loci"); rownames(props) <- names(centres)
-round(props * sum(obs), 1)          # expected counts out of 30 under each hypothesis
-
-sapply(1:4, function(k) chisq.test(obs, p = props[, k],
-                                   simulate.p.value = TRUE, B = 1e4)$p.value)
-```
-
 # Prediction for the different types of crosses
 ## Fit saturated for Table S7 and Fig. 5
 ```{r}
@@ -533,7 +387,7 @@ summary(msat)
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
 set.seed(123)
-b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=merged_data), nsim=500, .progress="txt")
+b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=merged_data), nsim=5, .progress="txt")
 
 ##Confidence intervals estimation
 confint_msat <- data.frame(bCI_tab(b=b1), check.names = FALSE)
@@ -571,7 +425,7 @@ summary(m1)
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
 set.seed(123)
-b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=500, .progress="txt")
+b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=5, .progress="txt")
 
 ##Confidence intervals estimation
 confint_full_model <- data.frame(bCI_tab(b=b1), check.names = FALSE)
@@ -604,6 +458,216 @@ newdata <- data.frame(CrossType=c("AmxBal", "AmxF1 BalxPar6", "AmxF1 Par6xBal", 
 newdata$prop_Par6 <- (newdata$alpha1 + 1)/2
 newdata$pred.cond <- predict(m9, type="conditional", re.form=NA, newdata=newdata)
 
+```
+
+
+# Castle-Wright estimation
+## Check that the variance is homogenous in parental and F1 crosses
+```{r Castle-Wright estimation, eval=TRUE}
+
+## Subset the data with a single type of cross (229 rows)
+strains <- c("Par6", "Bal", "F1 Par6xBal", "F1 BalxPar6", "F2 Par6xBalxPar6xBal", "F2 BalxPar6xBalxPar6")
+crosstype <- paste0("Amx", strains)
+
+dat_g <- data[data$CrossType%in%crosstype, ]
+
+## Factor with four levels for the variance of two parents, F1s and F2s
+dat_g$vgroup4 <- factor(ifelse(grepl("F2", dat_g$CrossType), "F2",
+                        ifelse(grepl("F1", dat_g$CrossType), "F1",
+                               sub("Amx", "", dat_g$CrossType))))   # Bal, Par6, F1, F2
+
+## Model with a different variance only for parents, F1s and F2s
+m_var4 <- glmmTMB::glmmTMB(cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vgroup4 | CoupleID), ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+
+## between-male variance for Bal, Par6, F1, F2
+glmmTMB::VarCorr(m_var4)
+
+## Variable to fit different variances for F2 vs. the other crosstypes
+dat_g$vargroup <- as.factor(ifelse(grepl("F2", dat_g$CrossType), "F2", "Others"))
+
+## Model with a different variance only for F2s vs. the other crosstypes
+m_var <- glmmTMB::glmmTMB(
+  cbind(LarvaeCount, EggCountCorr - LarvaeCount) ~ CrossType + diag(0 + vargroup | CoupleID),
+  ziformula = ~1, family = glmmTMB::betabinomial(), data = dat_g)
+summary(m_var)
+
+## No significant differences between variances in the parents and F1 so we can estimate a single parameter
+anova(m_var, m_var4)
+
+## F2 variance is not significantly larger (but low power as only 29 F2 crosses)
+anova(update(m_var, . ~ CrossType + (1 | CoupleID)), m_var)
+
+```
+
+## Plotting the F2 male random effects (BLUPS) against the Bal and F1 means
+```{r, eval=TRUE}
+ord  <- c("AmxBal", "AmxF1 Par6xBal", "AmxF1 BalxPar6",
+          "AmxF2 Par6xBalxPar6xBal", "AmxF2 BalxPar6xBalxPar6", "AmxPar6")
+ord2 <- c("Bal", "F1 (Par6×Bal)", "F1 (Bal×Par6)",
+          "F2 (Par6×Bal)×(Par6×Bal)", "F2 (Bal×Par6)×(Bal×Par6)", "Par6")
+
+# One row per male (couple)
+males <- unique(dat_g[, c("CoupleID", "CrossType", "vargroup")])
+males$pred <- predict(m_var, newdata = males, type = "conditional", re.form = NULL)
+
+raw <- aggregate(cbind(LarvaeCount, EggCountCorr) ~ CoupleID, data = dat_g, FUN = sum)
+males <- merge(males, raw, by = "CoupleID")
+males$obs_hatch_rate <- males$LarvaeCount / males$EggCountCorr
+plot(males$obs_hatch_rate, males$pred)          # quick check
+
+# Cross-type means with 95% CI (population level)
+newdata <- data.frame(CrossType = ord, CoupleID = NA, EggCountCorr=100)
+newdata$vargroup <- factor(as.integer(grepl("F2", ord)), levels = levels(dat_g$vargroup))  # same coding as the model
+pr <- predict(m_var, newdata = newdata, type = "link", re.form = NA, se.fit = TRUE)
+newdata$fit <- plogis(pr$fit)
+newdata$lo  <- plogis(pr$fit - 1.96 * pr$se.fit)
+newdata$hi  <- plogis(pr$fit + 1.96 * pr$se.fit)
+
+# Same labels for both data frames
+males$CrossType   <- factor(males$CrossType,   levels = ord, labels = ord2)
+newdata$CrossType <- factor(newdata$CrossType, levels = ord, labels = ord2)
+
+ref <- newdata[newdata$CrossType %in% c("Bal", "Par6"), ]
+ref$lab  <- as.character(ref$CrossType)
+ref$ylab <- ref$fit + ifelse(ref$lab == "Bal", 0.13, 0)    # raise Bal label only
+
+males$Generation <- ifelse(grepl("F2", males$CrossType), "F2",
+                    ifelse(grepl("F1", males$CrossType), "F1", "Parental"))
+
+plt <- ggplot2::ggplot(males, aes(x = CrossType, y = pred)) +
+  geom_hline(data = ref, aes(yintercept = fit), linetype = "dashed", colour = "grey40") +
+  geom_jitter(aes(colour = Generation), width = 0.12, height = 0, size = 2.2, alpha = 0.75) +
+  geom_pointrange(data = newdata, aes(y = fit, ymin = lo, ymax = hi),
+                  position = position_nudge(x = 0.3), size = 0.4) +
+  geom_label(data = ref, aes(x = 0.6, y = ylab, label = lab),
+             hjust = 0, vjust = -0.3, size = 3.5, colour = "grey30",
+             fill = "white", linewidth = 0, label.padding = unit(0.1, "lines")) +
+  scale_y_continuous("Hatch rate excluding structural zeros", limits = c(0, 1)) +
+  scale_colour_manual(values = c(Parental = "grey50", F1 = "#1b9e77", F2 = "#d95f02")) +
+  labs(x = "Male genotype", colour = NULL) +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "top")
+
+
+#save bar plot
+title_plot <- "BLUPS_Par6_Bal_F1_F2.png"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   plt, base_height = 12/cm(1),
+                   base_width = 10/cm(1), dpi = 1200)
+```
+
+## Compute Castle-Wright estimates
+```{r, eval=TRUE}
+
+vc   <- glmmTMB::VarCorr(m_var)$cond$CoupleID
+# between-male variance, non-F2 groups
+s2E  <- vc["vargroupOthers", "vargroupOthers"]
+# between-male variance, F2
+s2F2 <- vc["vargroupF2", "vargroupF2"]
+
+## Mean hatch rate estimates  Bal - Par6 (Bal = reference)
+b    <- glmmTMB::fixef(m_var)$cond
+delta <- as.numeric((b["(Intercept)"]) - (b["(Intercept)"] + b["CrossTypeAmxPar6"]))
+
+s2S <- s2F2 - s2E
+n_e <- delta^2 / (8 * s2S)
+c(s2E = s2E, s2F2 = s2F2, s2S = s2S, n_e = n_e)
+```
+
+## Compute 95% confidence interval
+```{r, eval=TRUE}
+## Use prop to be able to use BootMer
+m_var <- glmmTMB::glmmTMB(
+  prop ~ CrossType + diag(0 + vargroup | CoupleID),
+  ziformula = ~1, family = glmmTMB::betabinomial(), weights = EggCountCorr, data = dat_g)
+
+## Statistics computed on each bootstrap refit
+ne_fun <- function(.) {
+  if (!isTRUE(.$sdr$pdHess)) return(rep(NA_real_, 6))      # drop unreliable refits
+  vc    <- glmmTMB::VarCorr(.)$cond$CoupleID
+  s2E   <- vc["vargroupOthers", "vargroupOthers"]            # between-male variance, non-F2
+  s2F2  <- vc["vargroupF2", "vargroupF2"]                    # between-male variance, F2
+  delta <- -unname(glmmTMB::fixef(.)$cond["CrossTypeAmxPar6"])  # Bal - Par6 (logit scale)
+  s2S   <- s2F2 - s2E                                         # segregation variance
+
+ return(c(s2E = s2E, s2F2 = s2F2, s2S = s2S, delta = delta,
+    inv_ne = 8 * s2S / delta^2,                               # always finite
+   n_e = if (s2S > 0) delta^2 / (8 * s2S) else Inf))
+}
+
+ne_fun(m_var)                                                # point estimates (check)
+
+set.seed(123)
+b_ne <- lme4::bootMer(m_var, FUN = ne_fun, nsim = 5, .progress = "txt")
+
+## Keep successful refits
+ok <- complete.cases(b_ne$t)
+cat(sum(!ok), "of", nrow(b_ne$t), "refits dropped\n")
+
+## Extract the simulations that worked
+t_ok <- b_ne$t[ok, ]
+colnames(t_ok) <- names(b_ne$t0)
+
+## Percentile intervals for the variance components and delta
+apply(t_ok[, c("s2E", "s2F2", "s2S", "delta")], 2, quantile, c(0.025, 0.5, 0.975))
+
+## Interval for n_e by inverting the interval for 1/n_e
+q <- quantile(t_ok[, "inv_ne"], c(0.025, 0.10, 0.90, 0.975))
+ne_ci <- c(lower95 = 1 / q[[4]], lower80 = 1 / q[[3]],
+           upper80 = if (q[[2]] > 0) 1 / q[[2]] else Inf,
+           upper95 = if (q[[1]] > 0) 1 / q[[1]] else Inf)
+round(ne_ci, 2)
+
+## Summaries for the text
+mean(t_ok[, "n_e"] < 2)           # proportion of estimates below 2 loci
+mean(t_ok[, "s2S"] <= 0)          # proportion with no extra F2 variance
+```
+
+## Simulations to check how environmental variation affect the position of F2 relative to the parents
+```{simulation r}
+## F2 males and their predicted hatch rates (logit scale)
+f2 <- males[grepl("F2", males$CrossType), ]
+lp <- qlogis(f2$pred)
+
+## Class centres from the cross-type means (labels as relabelled for the plot)
+ct_lab <- as.character(newdata$CrossType)
+centres <- qlogis(c(
+  Bal  = newdata$fit[ct_lab == "Bal"],
+  F1   = mean(newdata$fit[grepl("F1", ct_lab)]),
+  Par6 = newdata$fit[ct_lab == "Par6"]))
+stopifnot(length(centres) == 3, !anyNA(centres))      # catch label mismatches
+
+## Assign each F2 male to the nearest centre
+classify <- function(v) factor(names(centres)[apply(abs(outer(v, centres, "-")), 1, which.min)],
+                               levels = names(centres))
+f2$class <- classify(lp)
+obs <- table(f2$class)
+obs
+
+## Genetic parameters on the logit scale
+mid <- mean(centres[c("Bal", "Par6")])
+a   <- unname((centres["Bal"] - centres["Par6"]) / 2)
+d   <- unname(centres["F1"] - mid)
+
+## Environmental (between-male) SD from the model, non-F2 groups
+vc   <- glmmTMB::VarCorr(m_var)$cond$CoupleID
+sd_e <- sqrt(vc["vargroupOthers", "vargroupOthers"])
+
+## Expected class proportions under n equal-effect loci
+sim_props <- function(nloci, sd_e, n = 1e5) {
+  x <- matrix(sample(c(-1, 0, 1), n * nloci, TRUE, c(0.25, 0.5, 0.25)), n)  # F2 genotypes
+  g <- mid + a * rowMeans(x) + d * rowMeans(x == 0)                         # genotypic values
+  as.numeric(prop.table(table(classify(g + rnorm(n, 0, sd_e)))))
+}
+
+set.seed(1)
+props <- sapply(1:4, sim_props, sd_e = sd_e)
+dimnames(props) <- list(names(centres), paste(1:4, "loci"))
+round(props * sum(obs), 1)                  # expected counts under each hypothesis
+
+## Goodness of fit of observed counts to each hypothesis
+sapply(1:4, function(k) chisq.test(obs, p = props[, k],
+                                   simulate.p.value = TRUE, B = 1e4)$p.value)
 ```
 
 
@@ -1389,7 +1453,6 @@ title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all_2.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), combined_plot, base_height = 120/cm(1), base_width = 120/cm(1), dpi = 1200)
 
 ```
-
 
 # Plot predicted embryo mortality for different genetic models
 ## Plot for predicted F1 and F2 with cytoplasmic effect Par6 / Bal
