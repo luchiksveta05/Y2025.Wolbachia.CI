@@ -7,7 +7,7 @@
 #' @param nbootsim number of simulations for parametric bootstrapping (default: nbootsim=500)
 #' @param dec_places number of decimal places for the output table (default: dec_places=3)
 #' @param saturated_model_estimates return estimates and 95%-confidence interval from saturated model and not from the best model with lowest AICc  (default: saturated_model_estimates=TRUE)
-#'
+#' @param include_all_blocks whether all blocks should be included for the analysis (default: include_all_blocks=FALSE)
 #' @return A list with the different outpus (AICc table, parameters estimate and confidence intervals for the best model, etc.)
 #'
 #' @export
@@ -16,33 +16,38 @@
 
 
 # Define the function
-fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=TRUE) {
+fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=TRUE, include_all_blocks=FALSE) {
 
   ## Extract the name of the uninfected and infected strains
   strains <- crosses[2:3]
 
   print(paste("Testing for differences in hatch rates among crosses between", strains[1], "and", strains[2] ))
 
-  ## Find block for the test cross
-  block <- unique(data$Batch[data[, female]==strains[1]&data[, male]==strains[2]])
-  block2 <- unique(data$Batch[data[, female]==strains[2]&data[, male]==strains[1]])
-  block3 <- unique(data$Batch[data[, female]==strains[1]&data[, male]==strains[1]])
-  block4 <- unique(data$Batch[data[, female]==strains[2]&data[, male]==strains[2]])
-
-  ## Test if blocks of control crosses are the same as the test cross
-  ## If not, add one block to that of the test cross
-  if(all(!block2%in%block)){
-    block <- c(block, block2[1])
-  }
-  if(all(!block3%in%block)){
-    block <- c(block, block3[1])
-  }
-  if(all(!block4%in%block)){
-    block <- c(block, block4[1])
-  }
-  if(grepl("F1|F2", strains[2])){
+  if(include_all_blocks){
     block <- unique(c(block, block2, block3, block4))
+  }else{
+    ## Find block for the test cross
+    block <- unique(data$Batch[data[, female]==strains[1]&data[, male]==strains[2]])
+    block2 <- unique(data$Batch[data[, female]==strains[2]&data[, male]==strains[1]])
+    block3 <- unique(data$Batch[data[, female]==strains[1]&data[, male]==strains[1]])
+    block4 <- unique(data$Batch[data[, female]==strains[2]&data[, male]==strains[2]])
+
+    ## Test if blocks of control crosses are the same as the test cross
+    ## If not, add one block to that of the test cross
+    if(all(!block2%in%block)){
+      block <- c(block, block2[1])
+    }
+    if(all(!block3%in%block)){
+      block <- c(block, block3[1])
+    }
+    if(all(!block4%in%block)){
+      block <- c(block, block4[1])
+    }
+    if(grepl("F1|F2", strains[2])){
+      block <- unique(c(block, block2, block3, block4))
+    }
   }
+
   print(paste("Use data from the following blocks:", paste(sort(block), collapse = " " )))
 
   ## Subset the data with a single type of cross
