@@ -2226,7 +2226,7 @@ vertical-align: -.125em;
   <li><a href="#check-structure-of-zero-inflation-1" id="toc-check-structure-of-zero-inflation-1" class="nav-link" data-scroll-target="#check-structure-of-zero-inflation-1"><span class="header-section-number">3.1</span> Check structure of zero inflation</a></li>
   <li><a href="#model-selection-1" id="toc-model-selection-1" class="nav-link" data-scroll-target="#model-selection-1"><span class="header-section-number">3.2</span> Model selection</a></li>
   </ul></li>
-  <li><a href="#prediction-for-the-different-types-of-crosses" id="toc-prediction-for-the-different-types-of-crosses" class="nav-link" data-scroll-target="#prediction-for-the-different-types-of-crosses"><span class="header-section-number">4</span> Prediction for the different types of crosses</a>
+  <li><a href="#prediction-for-the-different-types-of-crosses-with-aggregated-data" id="toc-prediction-for-the-different-types-of-crosses-with-aggregated-data" class="nav-link" data-scroll-target="#prediction-for-the-different-types-of-crosses-with-aggregated-data"><span class="header-section-number">4</span> Prediction for the different types of crosses with aggregated data</a>
   <ul class="collapse">
   <li><a href="#fit-saturated-for-table-s7-and-fig.-5" id="toc-fit-saturated-for-table-s7-and-fig.-5" class="nav-link" data-scroll-target="#fit-saturated-for-table-s7-and-fig.-5"><span class="header-section-number">4.1</span> Fit saturated for Table S7 and Fig. 5</a></li>
   <li><a href="#full-model-m1-for-table-s7" id="toc-full-model-m1-for-table-s7" class="nav-link" data-scroll-target="#full-model-m1-for-table-s7"><span class="header-section-number">4.2</span> Full model m1 for Table S7</a></li>
@@ -3017,8 +3017,8 @@ m0     converged positive_definite</code></pre>
 </div>
 </section>
 </section>
-<section id="prediction-for-the-different-types-of-crosses" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Prediction for the different types of crosses</h1>
+<section id="prediction-for-the-different-types-of-crosses-with-aggregated-data" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Prediction for the different types of crosses with aggregated data</h1>
 <section id="fit-saturated-for-table-s7-and-fig.-5" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="fit-saturated-for-table-s7-and-fig.-5"><span class="header-section-number">4.1</span> Fit saturated for Table S7 and Fig. 5</h2>
 <div class="cell">
@@ -3139,7 +3139,7 @@ CrossTypeF2 Par6xBalxPar6xBalxF2 Par6xBalxPar6xBal
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Estimation of confidence intervals</span></span>
 <span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Refit model nsim=500 times</span></span>
 <span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(msat, <span class="at">FUN=</span><span class="cf">function</span>(fit) <span class="fu">extract_model</span>(fit, <span class="at">estimate_response=</span><span class="cn">TRUE</span>, <span class="at">estimate_overdisp=</span><span class="cn">TRUE</span>, <span class="at">newdata=</span>merged_data), <span class="at">nsim=</span><span class="dv">5</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(msat, <span class="at">FUN=</span><span class="cf">function</span>(fit) <span class="fu">extract_model</span>(fit, <span class="at">estimate_response=</span><span class="cn">TRUE</span>, <span class="at">estimate_overdisp=</span><span class="cn">TRUE</span>, <span class="at">newdata=</span>merged_data), <span class="at">nsim=</span><span class="dv">500</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>================================================================================</code></pre>
 </div>
@@ -3216,29 +3216,23 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Estimation of confidence intervals</span></span>
 <span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Refit model nsim=500 times</span></span>
 <span id="cb81-3"><a href="#cb81-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m1, <span class="at">FUN=</span>extract_model_logit_scale, <span class="at">nsim=</span><span class="dv">5</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a>b1 <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m1, <span class="at">FUN=</span>extract_model_logit_scale, <span class="at">nsim=</span><span class="dv">500</span>, <span class="at">.progress=</span><span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>================================================================================</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="do">##Confidence intervals estimation</span></span>
 <span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">bCI_tab</span>(<span class="at">b=</span>b1), <span class="at">check.names =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a><span class="do">## Add sample size</span></span>
-<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">tapply</span>(dat_g<span class="sc">$</span>CrossType, dat_g<span class="sc">$</span>CrossType, length)</span>
-<span id="cb83-6"><a href="#cb83-6" aria-hidden="true" tabindex="-1"></a>confint_full_model<span class="sc">$</span>n <span class="ot">&lt;-</span> <span class="fu">rep</span>(n, <span class="at">times=</span><span class="fu">nrow</span>(confint_full_model)<span class="sc">/</span><span class="fu">length</span>(n))</span>
-<span id="cb83-7"><a href="#cb83-7" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> confint_full_model<span class="sc">|&gt;</span></span>
-<span id="cb83-8"><a href="#cb83-8" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">relocate</span>(n)</span>
-<span id="cb83-9"><a href="#cb83-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb83-10"><a href="#cb83-10" aria-hidden="true" tabindex="-1"></a><span class="do">## Keep only 3 decimal places</span></span>
-<span id="cb83-11"><a href="#cb83-11" aria-hidden="true" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Estimate&quot;</span>, <span class="st">&quot;2.5 %&quot;</span>, <span class="st">&quot;97.5 %&quot;</span>)</span>
-<span id="cb83-12"><a href="#cb83-12" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> confint_full_model<span class="sc">|&gt;</span></span>
-<span id="cb83-13"><a href="#cb83-13" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(dplyr<span class="sc">::</span><span class="fu">across</span>(dplyr<span class="sc">::</span><span class="fu">all_of</span>(cols), \(x) <span class="fu">round</span>(<span class="fu">as.numeric</span>(x), <span class="dv">3</span>)))</span>
-<span id="cb83-14"><a href="#cb83-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb83-15"><a href="#cb83-15" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> confint_full_model<span class="sc">|&gt;</span></span>
-<span id="cb83-16"><a href="#cb83-16" aria-hidden="true" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">&quot;Parameters&quot;</span>)</span>
-<span id="cb83-17"><a href="#cb83-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb83-18"><a href="#cb83-18" aria-hidden="true" tabindex="-1"></a><span class="do">## Export files for the table S7</span></span>
-<span id="cb83-19"><a href="#cb83-19" aria-hidden="true" tabindex="-1"></a><span class="fu">write.table</span>(<span class="at">x =</span> confint_full_model, <span class="at">file=</span><span class="fu">file.path</span>(here<span class="sc">::</span><span class="fu">here</span>(), <span class="st">&quot;data&quot;</span>, <span class="st">&quot;derived_data&quot;</span>, <span class="st">&quot;confint_full_model_m1.csv&quot;</span>), <span class="at">sep=</span><span class="st">&quot;;&quot;</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a><span class="do">## Keep only 3 decimal places</span></span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Estimate&quot;</span>, <span class="st">&quot;2.5 %&quot;</span>, <span class="st">&quot;97.5 %&quot;</span>)</span>
+<span id="cb83-6"><a href="#cb83-6" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> confint_full_model<span class="sc">|&gt;</span></span>
+<span id="cb83-7"><a href="#cb83-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(dplyr<span class="sc">::</span><span class="fu">across</span>(dplyr<span class="sc">::</span><span class="fu">all_of</span>(cols), \(x) <span class="fu">round</span>(<span class="fu">as.numeric</span>(x), <span class="dv">3</span>)))</span>
+<span id="cb83-8"><a href="#cb83-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb83-9"><a href="#cb83-9" aria-hidden="true" tabindex="-1"></a>confint_full_model <span class="ot">&lt;-</span> confint_full_model<span class="sc">|&gt;</span></span>
+<span id="cb83-10"><a href="#cb83-10" aria-hidden="true" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">&quot;Parameters&quot;</span>)</span>
+<span id="cb83-11"><a href="#cb83-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb83-12"><a href="#cb83-12" aria-hidden="true" tabindex="-1"></a><span class="do">## Export files for the table S7</span></span>
+<span id="cb83-13"><a href="#cb83-13" aria-hidden="true" tabindex="-1"></a><span class="fu">write.table</span>(<span class="at">x =</span> confint_full_model, <span class="at">file=</span><span class="fu">file.path</span>(here<span class="sc">::</span><span class="fu">here</span>(), <span class="st">&quot;data&quot;</span>, <span class="st">&quot;derived_data&quot;</span>, <span class="st">&quot;confint_full_model_m1.csv&quot;</span>), <span class="at">sep=</span><span class="st">&quot;;&quot;</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="best-model-estimates" class="level2" data-number="4.3">
@@ -3472,7 +3466,7 @@ m_var                                         2.1494      1     0.1426</code></p
  0.2163207  1.1215404  0.9052197 -2.1196918  1.6117532  0.6204424 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb99"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a>b_ne <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m_var, <span class="at">FUN =</span> ne_fun, <span class="at">nsim =</span> <span class="dv">5</span>, <span class="at">.progress =</span> <span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a>b_ne <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">bootMer</span>(m_var, <span class="at">FUN =</span> ne_fun, <span class="at">nsim =</span> <span class="dv">500</span>, <span class="at">.progress =</span> <span class="st">&quot;txt&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>================================================================================</code></pre>
 </div>
@@ -3480,7 +3474,7 @@ m_var                                         2.1494      1     0.1426</code></p
 <span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a>ok <span class="ot">&lt;-</span> <span class="fu">complete.cases</span>(b_ne<span class="sc">$</span>t)</span>
 <span id="cb101-3"><a href="#cb101-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sum</span>(<span class="sc">!</span>ok), <span class="st">&quot;of&quot;</span>, <span class="fu">nrow</span>(b_ne<span class="sc">$</span>t), <span class="st">&quot;refits dropped</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>0 of 5 refits dropped</code></pre>
+<pre><code>38 of 500 refits dropped</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb103"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Extract the simulations that worked</span></span>
 <span id="cb103-2"><a href="#cb103-2" aria-hidden="true" tabindex="-1"></a>t_ok <span class="ot">&lt;-</span> b_ne<span class="sc">$</span>t[ok, ]</span>
@@ -3489,10 +3483,10 @@ m_var                                         2.1494      1     0.1426</code></p
 <span id="cb103-5"><a href="#cb103-5" aria-hidden="true" tabindex="-1"></a><span class="do">## Percentile intervals for the variance components and delta</span></span>
 <span id="cb103-6"><a href="#cb103-6" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(t_ok[, <span class="fu">c</span>(<span class="st">&quot;s2E&quot;</span>, <span class="st">&quot;s2F2&quot;</span>, <span class="st">&quot;s2S&quot;</span>, <span class="st">&quot;delta&quot;</span>)], <span class="dv">2</span>, quantile, <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>            s2E     s2F2        s2S     delta
-2.5%  0.0780947 0.232716 0.00373045 -2.461685
-50%   0.2306273 1.268894 0.93701482 -1.875236
-97.5% 0.3241944 1.657559 1.57538181 -1.700883</code></pre>
+<pre><code>               s2E      s2F2         s2S     delta
+2.5%  7.749091e-09 0.1646945 -0.01281206 -2.791064
+50%   9.658423e-02 0.8935025  0.75160967 -2.148478
+97.5% 4.076567e-01 1.8229952  1.72453764 -1.487430</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Interval for n_e by inverting the interval for 1/n_e</span></span>
 <span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>q <span class="ot">&lt;-</span> <span class="fu">quantile</span>(t_ok[, <span class="st">&quot;inv_ne&quot;</span>], <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.10</span>, <span class="fl">0.90</span>, <span class="fl">0.975</span>))</span>
@@ -3502,16 +3496,16 @@ m_var                                         2.1494      1     0.1426</code></p
 <span id="cb105-6"><a href="#cb105-6" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(ne_ci, <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>lower95 lower80 upper80 upper95 
-   0.34    0.36    2.77     Inf </code></pre>
+   0.23    0.35    2.73     Inf </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb107"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Summaries for the text</span></span>
 <span id="cb107-2"><a href="#cb107-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(t_ok[, <span class="st">&quot;n_e&quot;</span>] <span class="sc">&lt;</span> <span class="dv">2</span>)           <span class="co"># proportion of estimates below 2 loci</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.8</code></pre>
+<pre><code>[1] 0.8614719</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb109"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(t_ok[, <span class="st">&quot;s2S&quot;</span>] <span class="sc">&lt;=</span> <span class="dv">0</span>)          <span class="co"># proportion with no extra F2 variance</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.2</code></pre>
+<pre><code>[1] 0.02597403</code></pre>
 </div>
 </div>
 </section>

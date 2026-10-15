@@ -618,7 +618,7 @@ mean(t_ok[, "s2S"] <= 0)          # proportion with no extra F2 variance
 ```
 
 ## Simulations to check how environmental variation affect the position of F2 relative to the parents
-```{simulation r}
+```{r simulation}
 ## F2 males and their predicted hatch rates (logit scale)
 f2 <- males[grepl("F2", males$CrossType), ]
 lp <- qlogis(f2$pred)
