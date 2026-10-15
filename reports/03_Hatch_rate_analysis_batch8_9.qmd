@@ -372,7 +372,7 @@ write.csv(
 
 ```
 
-# Prediction for the different types of crosses
+# Prediction for the different types of crosses with aggregated data
 ## Fit saturated for Table S7 and Fig. 5
 ```{r}
 library(rlang)
@@ -387,7 +387,7 @@ summary(msat)
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
 set.seed(123)
-b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=merged_data), nsim=5, .progress="txt")
+b1 <- lme4::bootMer(msat, FUN=function(fit) extract_model(fit, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=merged_data), nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
 confint_msat <- data.frame(bCI_tab(b=b1), check.names = FALSE)
@@ -425,16 +425,10 @@ summary(m1)
 #Estimation of confidence intervals
 ## Refit model nsim=500 times
 set.seed(123)
-b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=5, .progress="txt")
+b1 <- lme4::bootMer(m1, FUN=extract_model_logit_scale, nsim=500, .progress="txt")
 
 ##Confidence intervals estimation
 confint_full_model <- data.frame(bCI_tab(b=b1), check.names = FALSE)
-
-## Add sample size
-n <- tapply(dat_g$CrossType, dat_g$CrossType, length)
-confint_full_model$n <- rep(n, times=nrow(confint_full_model)/length(n))
-confint_full_model <- confint_full_model|>
-    dplyr::relocate(n)
 
 ## Keep only 3 decimal places
 cols <- c("Estimate", "2.5 %", "97.5 %")
@@ -598,7 +592,7 @@ ne_fun <- function(.) {
 ne_fun(m_var)                                                # point estimates (check)
 
 set.seed(123)
-b_ne <- lme4::bootMer(m_var, FUN = ne_fun, nsim = 5, .progress = "txt")
+b_ne <- lme4::bootMer(m_var, FUN = ne_fun, nsim = 500, .progress = "txt")
 
 ## Keep successful refits
 ok <- complete.cases(b_ne$t)
