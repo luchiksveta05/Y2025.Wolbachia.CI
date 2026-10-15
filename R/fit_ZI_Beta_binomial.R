@@ -6,7 +6,7 @@
 #' @param male name of the column in data which corresponds to the male strain in the cross (default: "Male")
 #' @param nbootsim number of simulations for parametric bootstrapping (default: nbootsim=500)
 #' @param dec_places number of decimal places for the output table (default: dec_places=3)
-#' @param saturated_model_estimates return estimates and 95%-confidence interval from saturated model and not from the best model with lowest AICc  (default: saturated_model_estimates=TRUE)
+#' @param saturated_model_estimates whether to return estimates and 95%-confidence interval from one saturated model ("m2_zi1_disp1", "m2_zi1_dispCT", "m2_ziCT_disp1" or "m2_ziCT_dispCT") and not from the best model with lowest AICc  (default: saturated_model_estimates=NULL)
 #' @param include_all_blocks whether all blocks should be included for the analysis (default: include_all_blocks=FALSE)
 #' @return A list with the different outpus (AICc table, parameters estimate and confidence intervals for the best model, etc.)
 #'
@@ -16,7 +16,12 @@
 
 
 # Define the function
-fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=TRUE, include_all_blocks=FALSE) {
+fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=NULL, include_all_blocks=FALSE,
+                                 zis = list(ziCT = ~ -1 + CrossType, ## zero-inflation differs among cross types
+                                             zi1  = ~ 1),
+                                 disps = list(
+                                   dispCT = ~ -1 + CrossType,      ## dispersion differs among cross types
+                                   disp1  = ~ 1)) {
 
   ## Extract the name of the uninfected and infected strains
   strains <- crosses[2:3]
@@ -92,10 +97,30 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
     m1   = prop ~ CI_test, ## CI model
     m2   = prop ~ -1 + CrossType) ## Saturated model
 
+  ## Fit one model, storing literal formulas and data in the call (needed by bootMer)
+  fit_one <- function(f, zi, disp) {
+    m <- glmmTMB::glmmTMB(f, ziformula = zi, dispformula = disp,
+                          family = glmmTMB::betabinomial(),
+                          weights = sum_eggcount_corr, data = dat)
+    m$call$formula     <- f
+    m$call$ziformula   <- zi
+    m$call$dispformula <- disp
+    m$call$data        <- dat
+    m
+  }
+
+  ## All combinations
+  grid <- expand.grid(cond = names(forms), zi = names(zis), disp = names(disps),
+                      stringsAsFactors = FALSE)
+  ## Fit all combinations
+  mods <- lapply(seq_len(nrow(grid)), function(i)
+    fit_one(forms[[grid$cond[i]]], zis[[grid$zi[i]]], disps[[grid$disp[i]]]))
+  names(mods) <- paste(grid$cond, grid$zi, grid$disp, sep = "_")
+
   ## Fit all models
-  mods <- lapply(forms, function(f)
-    glmmTMB::glmmTMB(update(f, prop ~ .),
-                     ziformula = ~-1 +CrossType, dispformula = ~ -1+ CrossType, family = glmmTMB::betabinomial(), weights = sum_eggcount_corr, data = dat))
+  #mods <- lapply(forms, function(f)
+  #  glmmTMB::glmmTMB(update(f, prop ~ .),
+  #                   ziformula = ~-1 +CrossType, dispformula = ~ -1+ CrossType, family = glmmTMB::betabinomial(), weights = sum_eggcount_corr, data = dat))
 
   ## Compare models based on AICc
   modelaicc <- data.frame(MuMIn::model.sel(mods))
@@ -105,15 +130,28 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
   ## Check convergence
   conv <- sapply(mods, \(x) x$fit$convergence)
   pd   <- sapply(mods, \(x) x$sdr$pdHess)
-  modelaicc$convergence <- ifelse(conv[rownames(modelaicc)] == 0, "converged", "not_converged")
-  modelaicc$Hessian     <- ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite")
+  #modelaicc$convergence <- ifelse(conv[rownames(modelaicc)] == 0, "converged", "not_converged")
+  #modelaicc$Hessian     <- ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite")
 
   ## Add model variables
-  labels <- c(m0 = "null (intercept)", m1 = "CI (test vs control crosses)", m2 = "saturated (cross type)")
-  modelaicc <- data.frame(model = rownames(modelaicc), model_var = labels[rownames(modelaicc)], modelaicc)
+  #labels <- c(m0 = "null (intercept)", m1 = "CI (test vs control crosses)", m2 = "saturated (cross type)")
+  #modelaicc <- data.frame(model = rownames(modelaicc), model_var = labels[rownames(modelaicc)], modelaicc)
+
+  labels_cond <- c(m0 = "null", m1 = "CI (test vs control)", m2 = "saturated (cross type)")
+  labels_zi   <- c(ziCT = "zi ~ cross type", zi1 = "zi constant")
+  labels_disp <- c(dispCT = "disp ~ cross type", disp1 = "disp constant")
+  parts <- do.call(rbind, strsplit(rownames(modelaicc), "_"))
+
+  modelaicc <- data.frame(model = rownames(modelaicc),
+                          cond  = labels_cond[parts[, 1]],
+                          zi    = labels_zi[parts[, 2]],
+                          disp  = labels_disp[parts[, 3]],
+                          modelaicc,
+                          convergence = ifelse(conv[rownames(modelaicc)] == 0, "converged", "not_converged"),
+                          Hessian     = ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite"))
 
   ## Get name of best model
-  bestmodelname <- ifelse(saturated_model_estimates, "m2", rownames(modelaicc)[1])
+  bestmodelname <- ifelse(is.null(saturated_model_estimates), rownames(modelaicc)[1], saturated_model_estimates)
   bestmodel <- mods[[bestmodelname]]
 
   # This step helps bootMer find the data
