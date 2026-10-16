@@ -148,12 +148,19 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
                           disp  = labels_disp[parts[, 3]],
                           modelaicc,
                           convergence = ifelse(conv[rownames(modelaicc)] == 0, "converged", "not_converged"),
-                          Hessian     = ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite"))
+                          Hessian     = ifelse(pd[rownames(modelaicc)], "positive_definite", "non_positive_definite"),
+                          row.names = rownames(modelaicc))
 
   ## Get name of best model
-  bestmodelname <- ifelse(is.null(saturated_model_estimates), rownames(modelaicc)[1], saturated_model_estimates)
+  ## Best model: the user's choice, or the best-ranked model that converged cleanly
+  bestmodelname <- if (!is.null(saturated_model_estimates)) {
+    saturated_model_estimates
+  } else {
+    modelaicc$model[modelaicc$Hessian == "positive_definite"][1]
+  }
+  if (!bestmodelname %in% names(mods)) stop("Model '", bestmodelname, "' not found among: ",
+                                            paste(names(mods), collapse = ", "))
   bestmodel <- mods[[bestmodelname]]
-
   # This step helps bootMer find the data
   #assign("dat", dat, envir = .GlobalEnv)
   bestmodel$call$data <- dat
