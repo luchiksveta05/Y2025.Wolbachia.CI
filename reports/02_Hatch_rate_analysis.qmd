@@ -95,7 +95,7 @@ nrow(merged_data)
 merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
 
 # Subset the data with a single type of cross (with Bal line)
-dat <- merged_data[merged_data$Female%in%c("Am", "Rennes")&merged_data$Male%in%c("Am", "Rennes"), ]
+dat <- merged_data[merged_data$Female%in%c("Am", "Bal")&merged_data$Male%in%c("Am", "Bal"), ]
 #dat <- merged_data[merged_data$Female%in%c("Am", "Par6")&merged_data$Male%in%c("Am", "Par6"), ]
 
 ## Binomial models
@@ -442,63 +442,6 @@ data_hatchrate <- data_hatchrate |>
 data_hatchrate <- data_hatchrate |>
 dplyr::distinct(CrossType, .keep_all = TRUE)
 
-#Fit model m1 for Par6 line to estimate hatch rate 
-#Remove rows for Par6
-data_hatchrate <- data_hatchrate |>
-dplyr::filter(!infstrain %in% c("Par6"))
-
-##Subset the data with a single type of cross
-dat <- merged_data[merged_data$Female%in%c("Am", "Par6")&merged_data$Male%in%c("Am", "Par6"), ]
-
-## Fit m1 model to measure hatch rate
-m1 <- glmmTMB::glmmTMB(hatchrate ~ -1 + CrossType + (1| CoupleID), data=dat, ziformula=~ 1 , family=binomial, weight=sum_eggcount_corr)
-
-## Check the model
-glmmTMB::diagnose(fit=m1)
-summary(m1)
-
-## Hatch rate
-(p2 <- 1/(1+exp(-glmmTMB::fixef(m1)$cond)))
-
-## Refit model nsim times
-  b1 <- lme4::bootMer(m1, FUN=function(fit) extract_model(fit, estimateCI = TRUE, estimate_hatche_rate=FALSE), nsim=500, .progress="txt")
-  
-##Confidence intervals estimation
-  confint <- bCI_tab(b=b1)
-  
-  ##Extract data
-  confintp2 <- confint[grepl("cond", rownames(confint)),]
-  
-  confintp2 <- as.data.frame(confintp2) |>
-  tibble::rownames_to_column(var = "type")
-  
-  ##Change format of the data for Par6
-  confintp2Par6 <- confintp2 |>
-  dplyr::mutate(
-    continent   = "europe",
-    uninfstrain = "Am",
-    infstrain   = "Par6",
-  ) |>
-  dplyr::select(
-    continent, uninfstrain, infstrain,
-    type, Estimate, `2.5 %`, `97.5 %`
-  )|>
-  dplyr::rename(
-    X2.5.  = `2.5 %`,
-    X97.5. = `97.5 %`
-  )
-
-  ##Add information about hatch rate in Par6 line to the database
-  data_hatchrate <- dplyr::bind_rows(data_hatchrate, confintp2Par6)
-  
-  data_hatchrate <- data_hatchrate |>
-  dplyr::mutate(CrossType = sub(".*CrossType", "", type)) 
-  
-  data_hatchrate <- data_hatchrate |>
-dplyr::distinct(CrossType, .keep_all = TRUE)
-  
-  ## Export file with median hatch rates for each type of cross
-write.table(x = data_hatchrate, file=file.path(here::here(), "data", "derived_data", "confint2_Europe.csv"), sep=";", row.names = FALSE)
 
 # Add information about hatch rate to the dataset
 median_hatch_rate <- dplyr::left_join(x=data_hatchrate, y=data1[, c("CoupleID", "CrossType", "CrossTypeLabel", "hatchrate","Female", "Male", "Pair", "Cross", "Batch", "Block", "Year")], by = "CrossType")
