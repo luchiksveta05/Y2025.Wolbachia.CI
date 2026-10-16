@@ -35,7 +35,7 @@ merged_data <- data |>
 
 ## Compute hatch rate for each CoupleID
 merged_data <- merged_data |>
-  dplyr::mutate(hatchrate = sum_larvacount / sum_eggcount_corr)
+  dplyr::mutate(prop = sum_larvacount / sum_eggcount_corr)
 
 # Add nessesary information to the data frame
 # Add column female and male infection status
@@ -76,7 +76,6 @@ dplyr:: mutate(CI_test = as.factor(ifelse(Cross=="Test cross W- x W+", "Test_cro
 
 ## Export file with hatch rates per Couple_ID
 write.table(x = merged_data, file=file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", row.names = FALSE)
-
 
 ## 16 zeros out of 272 Petri dishes
 ## With 2–3 observations per couple, the data barely separate the random coupleID from the zero inflation (i.e. “this couple has a low mean” from “this couple had chance structural zeros”).
@@ -151,7 +150,6 @@ DHARMa::testCategorical(so, catPred = factor(dat$CrossType))
 ## Best model estimate
 ```{r}
 ## cross type effect on hatch rate and mating probability
-dat$prop <- dat$sum_larvacount / dat$sum_eggcount_corr
 m <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 summary(m)
 logLik(m)
@@ -163,8 +161,6 @@ datCrossType <- dat |>
   dplyr::summarise(Sum_eggcount_corr = sum(sum_eggcount_corr),
                    Sum_larvacount = sum(sum_larvacount))|>
   dplyr::mutate(hatchrate = Sum_larvacount / Sum_eggcount_corr)
-
-
 
 ## Zero-inflated part of the model
 ## Probability of having no mating
@@ -205,13 +201,13 @@ round(sqrt(mu * (1 - mu) * rho), 3)
 m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 
 ## CI model
-m1 <- glmmTMB::glmmTMB(prop ~ CI_test, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
- 
+m1 <- glmmTMB::glmmTMB(prop ~ CI_test, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
 ## Saturated model
-m2 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ -1+ CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+m2 <- glmmTMB::glmmTMB(prop ~ -1+CrossType, ziformula=~-1 +CrossType, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
 
 MuMIn::model.sel(m0, m1, m2)
-summary(m2)
+summary(m1)
 
 ## Compute confidence interval for m3
 ## Refit model nsim times
@@ -225,13 +221,13 @@ confint <- data.frame(bCI_tab(b=b1))
 ## Model selection for crosses with Bal, Trento, Par6 and Rennes 
 ```{r}
 ## Example for one cross
-AmBal <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Bal"), data=merged_data, nbootsim=5)
+AmBal <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Bal"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
-AmTrento <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Trento"), data=merged_data, nbootsim=500)
+AmTrento <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Trento"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
-AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data, nbootsim=500)
+AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
-AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500)
+AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
 ```
 
@@ -246,7 +242,7 @@ europe <- europe[c(1, 2, 3, 11)]
 crosses <- data.frame(continent=rep("Europe", 4), uninf_strain="Am" , inf_strain=c("Trento", "Bal", "Rennes", "Par6"))
 
 ## Fit all models on all the crosses function with nbootsim = 500
-results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data, nbootsim = 500, dec_places=3)
+results <- apply(crosses, 1, fit_ZI_Beta_binomial, data=merged_data, nbootsim = 500, dec_places=3, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
 ## Extract the results from all models
 crossnum <- 1:nrow(crosses)

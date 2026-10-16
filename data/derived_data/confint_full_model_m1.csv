@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 "Parameters";"n";"CrossType";"Estimate";"2.5 %";"97.5 %"
 "zi.(Intercept)";17;"(Intercept)";-2.726;-4.311;-1.957
 "cond.(Intercept)";12;"(Intercept)";-0.139;-0.486;0.163
@@ -5,3 +6,12 @@
 "cond.dominance";16;"dominance";0.571;0.089;1.123
 "cond.X";14;"X";0.093;-0.447;0.622
 "cond.Y";16;"Y";-0.147;-0.466;0.158
+=======
+"Parameters";"CrossType";"Estimate";"2.5 %";"97.5 %"
+"zi.(Intercept)";"(Intercept)";-2.726;-4.311;-1.957
+"cond.(Intercept)";"(Intercept)";-0.139;-0.486;0.163
+"cond.alpha1";"alpha1";1.021;0.188;1.944
+"cond.dominance";"dominance";0.571;0.089;1.123
+"cond.X";"X";0.093;-0.447;0.622
+"cond.Y";"Y";-0.147;-0.466;0.158
+>>>>>>> 5e242a0ba518205a3f9ff18c7f3cde5886db09d7
