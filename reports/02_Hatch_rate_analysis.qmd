@@ -221,13 +221,49 @@ confint <- data.frame(bCI_tab(b=b1))
 ## Model selection for crosses with Bal, Trento, Par6 and Rennes 
 ```{r}
 ## Example for one cross
-AmBal <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Bal"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
+AmBal <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Bal"), data=merged_data, nbootsim=500,
+                              saturated_model_estimates="m2_zi1_disp1",
+                              zis = list(zi1  = ~ 1, ziCT = ~ -1 + CrossType), 
+                              disps = list(disp1  = ~ 1),
+                              forms = list(
+                                m0   = prop ~ 1, ## Null model
+                                m1   = prop ~ CI_test, ## CI model
+                                m2   = prop ~ -1 + CrossType) ## Saturated model
+  )
+AmBal$modelaicc
+AmBal$confintCI
 
-AmTrento <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Trento"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
 
-AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
+AmTrento <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Trento"), data=merged_data, nbootsim=500,
+                              saturated_model_estimates="m2_zi1_disp1",
+                              zis = list(zi1  = ~ 1, ziCT = ~ -1 + CrossType), 
+                              disps = list(disp1  = ~ 1),
+                              forms = list(
+                                m0   = prop ~ 1, ## Null model
+                                m1   = prop ~ CI_test, ## CI model
+                                m2   = prop ~ -1 + CrossType) ## Saturated model
+  )
 
-AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500, zis = list(zi1  = ~ 1), disps = list(disp1  = ~ 1), saturated_model_estimates="m2_zi1_disp1")
+AmRennes <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Rennes"), data=merged_data, nbootsim=500,
+                              saturated_model_estimates="m2_zi1_disp1",
+                              zis = list(zi1  = ~ 1, ziCT = ~ -1 + CrossType), 
+                              disps = list(disp1  = ~ 1),
+                              forms = list(
+                                m0   = prop ~ 1, ## Null model
+                                m1   = prop ~ CI_test, ## CI model
+                                m2   = prop ~ -1 + CrossType) ## Saturated model
+  )
+
+
+AmPar6 <- fit_ZI_Beta_binomial(crosses=c("Europe", "Am", "Par6"), data=merged_data, nbootsim=500,
+                              saturated_model_estimates="m2_zi1_disp1",
+                              zis = list(zi1  = ~ 1, ziCT = ~ -1 + CrossType), 
+                              disps = list(disp1  = ~ 1),
+                              forms = list(
+                                m0   = prop ~ 1, ## Null model
+                                m1   = prop ~ CI_test, ## CI model
+                                m2   = prop ~ -1 + CrossType) ## Saturated model
+  )
 
 ```
 

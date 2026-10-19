@@ -16,7 +16,7 @@
 
 
 # Define the function
-fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=NULL, include_all_blocks=FALSE,
+fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_data, female="Female", male="Male", nbootsim=500, dec_places=3, saturated_model_estimates=NULL, include_all_blocks=FALSE, forms=NULL,
                                  zis = list(ziCT = ~ -1 + CrossType, ## zero-inflation differs among cross types
                                              zi1  = ~ 1),
                                  disps = list(
@@ -91,11 +91,14 @@ fit_ZI_Beta_binomial <- function(crosses=c("Europe", "Am", "Bal"), data=merged_d
 
   print(datCrossType)
 
-  ## List all models
-  forms <- list(
-    m0   = prop ~ 1, ## Null model
-    m1   = prop ~ CI_test, ## CI model
-    m2   = prop ~ -1 + CrossType) ## Saturated model
+  if(is.null(forms)){
+    ## List all models
+    forms <- list(
+      m0   = prop ~ 1, ## Null model
+      m1   = prop ~ CI_test, ## CI model
+      m2   = prop ~ -1 + CrossType) ## Saturated model
+  }
+
 
   ## Fit one model, storing literal formulas and data in the call (needed by bootMer)
   fit_one <- function(f, zi, disp) {
