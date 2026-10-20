@@ -49,8 +49,8 @@ data1 <- data1 %>%
   dplyr::mutate(Titer = 2^(RP49_mean-ftsZ_mean))
 
 #Add CI phenotype
-data1$CI <- as.factor(ifelse(data1$Strain %in% c("Trento", "Bal"), "CI",
-                         ifelse(data1$Strain %in% c("Par6","Rennes", "Am^Bal","Am^Trento", "Am^Par6",  "Am^Rennes"), "no CI", NA)))
+data1$CI <- as.factor(ifelse(data1$Strain %in% c("Trento", "Bal"), "High CI",
+                         ifelse(data1$Strain %in% c("Par6","Rennes", "Am^Bal","Am^Trento", "Am^Par6",  "Am^Rennes"), "Undetectable CI", NA)))
 
 data1 <- data1 %>%
 dplyr:: mutate(Strain = factor(Strain, levels = c("Trento", "Bal", "Par6", "Rennes","Am^Trento", "Am^Bal", "Am^Par6",  "Am^Rennes")))
@@ -125,16 +125,17 @@ write.csv2(tab_pw, here::here("data", "derived_data", "titer_pairwise.csv"), row
 ```{r}
   
 
-# add information about CI level
+# Add information about CI level
+data2 <- data2 |>
+  dplyr::mutate(
+    CI_low  = c(Trento = 0.43, Bal = 0.67, Par6 = 0,    Rennes = 0   )[as.character(Strain)],
+    CI_high = c(Trento = 0.47, Bal = 0.70, Par6 = 0.19, Rennes = 0.18)[as.character(Strain)]
+  )
 
-data2 <-data2|>
-  dplyr::mutate(CI_strength = c(Trento = 0.47, Bal = 0.74,
-                                       Par6 = 0, Rennes = 0)[Strain])
-
-#Add labels with CI estimate
-labs_x <- with(unique(data2[, c("Strain", "CI_strength")]),
-               setNames(sprintf("%s\n(%d%%)", Strain, round(CI_strength * 100)), Strain))
-
+# Labels
+labs_x <- with(unique(data2[, c("Strain", "CI_low", "CI_high")]),
+               setNames(sprintf("%s\n(%d\u2013%d%%)", Strain,
+                                round(CI_low * 100), round(CI_high * 100)), Strain))
 ##Plot Fig 3
 
 p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
@@ -146,7 +147,7 @@ p <- ggplot(data2, aes(x = Strain, y = Titer, colour = CI)) +
                         annotations = c("*","*"),
                         y_position = c(100, 110),
                         textsize = 6, colour = "black") +
-  scale_colour_manual(values = c("CI" = "#DD3497", "no CI" = "#54278F"),
+  scale_colour_manual(values = c("High CI" = "#DD3497", "Undetectable CI" = "#54278F"),
                       name = NULL) +
   scale_x_discrete(labels = labs_x) +
   labs(x = NULL, y = expression(italic("Wolbachia")~"titer in testes")) +
@@ -168,7 +169,7 @@ p
 
 
 #Save the plot
-title_plot <- "Fig_3_titers3.pdf"
+title_plot <- "Fig3_titers3.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    p, base_height = 13.5/cm(1),
                    base_width = 16/cm(1), dpi = 1200)
@@ -219,7 +220,7 @@ p <- ggplot(data3, aes(x = Strain, y = Titer, colour = CI)) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
                 width = 0.12, linewidth = 0.5) +
   geom_point(aes(y = mean_titer), size = 6, shape = 16) +
-  scale_colour_manual(values = c("CI" = "#DD3497", "no CI" = "#54278F"),
+  scale_colour_manual(values = c("High CI" = "#DD3497", "Undetectable CI" = "#54278F"),
                       guide = "none") +
   scale_x_discrete(labels = x_label_names) +
   labs(x = NULL, y = expression(italic("Wolbachia")~"titer in testes")) +
@@ -236,7 +237,7 @@ p
 
 
 #Save the plot
-title_plot <- "Fig_3_titers_introgressed.pdf"
+title_plot <- "FigS5_titers_introgressed.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    p, base_height = 13.5/cm(1),
                    base_width = 16/cm(1), dpi = 1200)
