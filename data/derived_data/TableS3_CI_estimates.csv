@@ -1,0 +1,10 @@
+"continent";"uninfstrain";"infstrain";"type";"CrossType";"Estimate";"2.5%";"97.5%"
+"europe";"Am";"TrentoT";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.139;0;0.327
+"europe";"Am";"TrentoT";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.189;0.012;0.382
+"europe";"Am";"TrentoT";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0.161;0;0.358
+"europe";"Am";"BalT";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.061;0;0.26
+"europe";"Am";"BalT";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.147;0;0.346
+"europe";"Am";"BalT";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0.08;0;0.274
+"europe";"Am";"RennesT";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0;0;0.123
+"europe";"Am";"RennesT";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.091;0;0.207
+"europe";"Am";"RennesT";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0;0;0.052

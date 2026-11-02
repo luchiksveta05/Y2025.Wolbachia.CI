@@ -7,7 +7,7 @@ format:
     toc: true
     toc-location: left
     number-sections: true
-embed-resources: true
+    embed-resources: true
 ---
 
 ```{r setup, include=FALSE}
@@ -36,6 +36,9 @@ merged_data <- data |>
 ## Compute hatch rate for each CoupleID
 merged_data <- merged_data |>
   dplyr::mutate(prop = sum_larvacount / sum_eggcount_corr)
+
+merged_data <- merged_data |>
+  dplyr::mutate(hatchrate = sum_larvacount / sum_eggcount_corr)
 
 # Add nessesary information to the data frame
 # Add column female and male infection status
@@ -427,116 +430,5 @@ cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplot1, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)
 ```
-
-
-# Old Figure 1
-```{r}
-
-library (rlang)
-
-#Read database
-merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
-
-# Filter and keep data only for screen for CI (403 rows)
-data1 <- merged_data |>
-  dplyr::filter(CrossType %in% c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm"))
-
-# Combine all CrossTypes for one Pair
-data1 <- data1 |>
-  dplyr::mutate(Pair = dplyr::case_when(
-    CrossType %in% c("AmxAm") ~ "Control",
-    CrossType %in% c("AmxTrento", "TrentoxAm", "TrentoxTrento") ~ "Trento",
-    CrossType %in% c("AmxBal", "BalxAm", "BalxBal") ~ "Bal",
-    CrossType %in% c("AmxRennes", "RennesxAm", "RennesxRennes") ~ "Rennes",
-    CrossType %in% c("AmxPar6","Par6xAm", "Par6xPar6") ~ "Par6",TRUE ~ NA_character_ ))
-
-data1 <- data1 |>
-  dplyr::mutate(Pair = factor(Pair, levels = c("Control", "Trento", "Bal", "Par6", "Rennes")))
-
-# Plot hatch_rate
-data1 |>
-  dplyr::group_by(CrossType) |>
-  ggplot(aes(x = CrossTypeLabel, y = hatchrate)) +
-  geom_point() +
-  ggplot2::facet_grid(.~ Pair, scales = "free", space = "free", switch = "x") +
-  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
-  labs(x = "Crosstype", y = "Hatch rate", title = "Hatch rate by Crosstype") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-#Read data with median hatch rate estimation from the model
-data_hatchrate <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confintp2.csv"), sep=",", header = TRUE))
-
-data_hatchrate <- data_hatchrate |>
-  dplyr::rename(
-    X2.5.  = `X2.50.`,
-    X97.5. = `X97.50.`)
-
-data_hatchrate <- data_hatchrate |>
-dplyr::distinct(CrossType, .keep_all = TRUE)
-
-
-# Add information about hatch rate to the dataset
-median_hatch_rate <- dplyr::left_join(x=data_hatchrate, y=data1[, c("CoupleID", "CrossType", "CrossTypeLabel", "hatchrate","Female", "Male", "Pair", "Cross", "Batch", "Block", "Year")], by = "CrossType")
-
-median_hatch_rate <- median_hatch_rate |>
-  dplyr:: filter(!is.na(CrossTypeLabel))
-
-#Change order for the CrosstypesLabel
-desired_order2 <- c(
-    "AmxAm (76)", 
-    "AmxTrento (41)", "TrentoxAm (34)", "TrentoxTrento (43)",
-    "AmxBal (46)", "BalxAm (30)","BalxBal (31)",
-    "AmxRennes (29)", "RennesxAm (20)", "RennesxRennes (27)",
-    "AmxPar6 (13)", "Par6xAm (14)", "Par6xPar6 (26)")
-
-median_hatch_rate <- median_hatch_rate |>
-  dplyr::mutate(CrossTypeLabel = factor(CrossTypeLabel, levels = desired_order2))
-
-# Remove the same CrossTypes (13 rows left)
-median_hatch_rate_reduced <- median_hatch_rate |>
-  dplyr::distinct(CrossType, .keep_all = TRUE)
-
-median_hatch_rate <-median_hatch_rate |>
-  dplyr::mutate(Year = as.factor(Year))
-
-#Create bar plot with individual data points
-
-hatchrateplot1 <- median_hatch_rate_reduced |>
-  ggplot2::ggplot(aes(x = CrossTypeLabel, y = Estimate, fill = Cross), size=100) +
-  ggplot2::geom_bar(stat = "identity") +
-  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.5., ymax = X97.5.), width = 0.4) +
-  ggplot2::geom_point(data = median_hatch_rate, aes(x = CrossTypeLabel, y = hatchrate, color = Year), position = position_jitter(width = 0.15, height = 0), size =3) + 
-  ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.2), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
-  scale_fill_manual(values = c("Control cross 1 W- x W-" = "#00bfc4", "Test cross W- x W+" = "#F8766D", "Control cross 2 W+ x W-" = "#7cae00", "Control cross 3 W+ x W+" = "#c77cff")) +
-  scale_color_manual(values = c ("2023" = "#931F1D", "2024" = "#00008B")) + 
-  labs(x = "Cross", y = "Hatch rate", title = "Median hatch rate and individual hatch rates per cross (female strain x male strain)", fill = "Cross type") +
-  #ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
-  ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
-  #ggplot2::facet_wrap(~ LineType + Pair_Type, ncol = 4, scales = "free_x", strip.position = "top", drop=FALSE, labeller = label_bquote( cols = Pair_Type)) +
-  ##ggplot2::facet_grid(Continent~Pair, switch = NULL, scales = "free", space = "fixed") +
-  theme_grey(base_size = 30) +
-  theme(plot.margin = margin(20, 20, 20, 20, "pt"),
-        #strip.background = element_blank(),  # Removes background from facet labels
-        strip.placement = "outside", 
-        axis.text.x = element_text(size=30, angle = 45, hjust = 1), #modify the text of the axis x
-        axis.text=element_text(size=20),
-        title = element_text(size = 0), #face="bold" makes it bold
-        axis.title=element_text(size=35,face="bold"),
-        legend.text=element_text(size = 30),
-        legend.title = element_text(size = 30),
-        legend.position = "top",
-        strip.text.x = element_text(size =45),
-        panel.grid.major.y = element_line(linetype = "dotted", color = "grey")) + # text for the subtitles/strips
-        theme(
-          panel.background = element_rect(fill = "white"),
-          legend.background = element_rect(fill = "white"),
-          legend.position = "top"
-          )
-
-#save bar plot
-title_plot <- "barbatch1-7_Europe.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   hatchrateplot1, base_height = 40/cm(1),
-                   base_width = 100/cm(1), dpi = 1200)
 
 ```

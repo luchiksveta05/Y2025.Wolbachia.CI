@@ -1,0 +1,13 @@
+"continent";"uninfstrain";"infstrain";"type";"CrossType";"Estimate";"2.5%";"97.5%"
+"europe";"Am";"Am^Trento";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.092;0;0.227
+"europe";"Am";"Am^Trento";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.139;0.027;0.261
+"europe";"Am";"Am^Trento";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0.042;0;0.185
+"europe";"Am";"Am^Bal";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.092;0;0.205
+"europe";"Am";"Am^Bal";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.037;0;0.165
+"europe";"Am";"Am^Bal";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0.013;0;0.147
+"europe";"Am";"Am^Rennes";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.045;0;0.177
+"europe";"Am";"Am^Rennes";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.076;0;0.201
+"europe";"Am";"Am^Rennes";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0.05;0;0.163
+"europe";"Am";"Am^Par6";"TestCrossvs.CtrlCross1";"TestCrossvs.CtrlCross1";0.012;0;0.113
+"europe";"Am";"Am^Par6";"TestCrossvs.CtrlCross2";"TestCrossvs.CtrlCross2";0.063;0;0.165
+"europe";"Am";"Am^Par6";"TestCrossvs.CtrlCross3";"TestCrossvs.CtrlCross3";0;0;0.103

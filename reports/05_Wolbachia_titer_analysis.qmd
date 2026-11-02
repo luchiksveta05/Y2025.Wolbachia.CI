@@ -237,7 +237,7 @@ p
 
 
 #Save the plot
-title_plot <- "FigS5_titers_introgressed.pdf"
+title_plot <- "FigS4_titers_introgressed.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    p, base_height = 13.5/cm(1),
                    base_width = 16/cm(1), dpi = 1200)
