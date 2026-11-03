@@ -1,0 +1,8 @@
+"continent";"uninfstrain";"infstrain";"type";"n";"CrossType";"Estimate";"2.5%";"97.5%";"Cross";"CI_test";"CrossTypeLabel"
+"europe";"Am";"Bal";"zi.AmxBal";19;"AmxBal";0.107;0;0.206;"Test cross W- x W+";"Test_cross";"AmxBal (19)"
+"europe";"Am";"Bal";"zi.BalxBal";11;"BalxBal";0.107;0;0.206;"Control cross 1 W+ x W+";"Control_cross";"BalxBal (11)"
+"europe";"Am";"Bal";"zi.Par6xBal";10;"Par6xBal";0.107;0;0.206;"Control cross 2 W+ x W+";"Control_cross";"Par6xBal (10)"
+"europe";"Am";"Bal";"zi.TrentoxBal";10;"TrentoxBal";0.107;0;0.206;"Control cross 3 W+ x W+";"Control_cross";"TrentoxBal (10)"
+"europe";"Am";"Trento";"zi.AmxTrento";20;"AmxTrento";0.028;0;0.086;"Test cross W- x W+";"Test_cross";"AmxTrento (20)"
+"europe";"Am";"Trento";"zi.BalxTrento";11;"BalxTrento";0.028;0;0.086;"Control cross 1 W+ x W+";"Control_cross";"BalxTrento (11)"
+"europe";"Am";"Trento";"zi.TrentoxTrento";27;"TrentoxTrento";0.028;0;0.086;"Control cross 2 W+ x W+";"Control_cross";"TrentoxTrento (27)"

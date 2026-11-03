@@ -155,8 +155,6 @@ write.table(
 
 ```
 
-
-
 # Model selection for females genotypes crossed with Rennes males
 ```{r}
 

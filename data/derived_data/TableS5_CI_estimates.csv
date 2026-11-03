@@ -1,0 +1,6 @@
+"continent";"uninfstrain";"infstrain";"type";"CrossType";"Estimate";"2.5%";"97.5%"
+"europe";"Am";"Bal";"TestCrossvs.BalxBal";"TestCrossvs.BalxBal";0.705;0.572;0.84
+"europe";"Am";"Bal";"TestCrossvs.Par6xBal";"TestCrossvs.Par6xBal";0.517;0.177;0.738
+"europe";"Am";"Bal";"TestCrossvs.TrentoxBal";"TestCrossvs.TrentoxBal";0.617;0.415;0.796
+"europe";"Am";"Trento";"TestCrossvs.BalxTrento";"TestCrossvs.BalxTrento";0.378;0.184;0.515
+"europe";"Am";"Trento";"TestCrossvs.TrentoxTrento";"TestCrossvs.TrentoxTrento";0.266;0.078;0.423

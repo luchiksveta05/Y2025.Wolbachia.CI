@@ -1,0 +1,7 @@
+"continent";"uninfstrain";"infstrain";"bestmodel";"model";"model.1";"cond";"zi";"disp";"cond..Int..";"zi..Int..";"disp..Int..";"cond.CI_test.";"cond.CrossType.";"df";"logLik";"AICc";"delta";"weight";"convergence";"Hessian"
+"europe";"Am";"Bal";"Yes";"m2_zi1_disp1";"m2_zi1_disp1";"saturated (cross type)";"zi constant";"disp constant";NA;-2.118;"+";NA;"+";6;-173.618;361.189;0;0.855;"converged";"positive_definite"
+"europe";"Am";"Bal";"No";"m1_zi1_disp1";"m1_zi1_disp1";"CI (test vs control)";"zi constant";"disp constant";0.638;-2.226;"+";"+";NA;4;-177.927;364.743;3.553;0.145;"converged";"positive_definite"
+"europe";"Am";"Bal";"No";"m0_zi1_disp1";"m0_zi1_disp1";"null";"zi constant";"disp constant";-0.079;-2.349;"+";NA;NA;3;-187.549;381.619;20.43;0;"converged";"positive_definite"
+"europe";"Am";"Trento";"Yes";"m2_zi1_disp1";"m2_zi1_disp1";"saturated (cross type)";"zi constant";"disp constant";NA;-3.531;"+";NA;"+";5;-221.423;454.001;0;0.596;"converged";"positive_definite"
+"europe";"Am";"Trento";"No";"m1_zi1_disp1";"m1_zi1_disp1";"CI (test vs control)";"zi constant";"disp constant";0.688;-3.517;"+";"+";NA;4;-223.021;454.797;0.796;0.4;"converged";"positive_definite"
+"europe";"Am";"Trento";"No";"m0_zi1_disp1";"m0_zi1_disp1";"null";"zi constant";"disp constant";0.387;-3.598;"+";NA;NA;3;-228.842;464.129;10.128;0.004;"converged";"positive_definite"
