@@ -1,0 +1,202 @@
+---
+title: "Analysis of the hatch rate female effects Appendix S6, Table S8"
+author: "Svitlana Serga, Nicolas O. Rode"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+    embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+
+```
+
+#  Fit models for female genetic effect
+```{r}
+
+## Load aggregated data
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE))
+
+
+```
+
+# Model estimates for Table S8b
+```{r}
+dat <- merged_data |>
+  ##dplyr::filter(Batch == 2)|>
+  dplyr::filter(CrossType %in% c("Mon47xBal", "AmxBal", "Par7xBal", "AmxPar6", "Par7xPar6", "AmxRennes", "Mon47xRennes")) #47 rows
+
+n_tab <- dat |>
+  dplyr::ungroup() |>
+  dplyr::count(CrossType, name = "n") |>
+  dplyr::mutate(CrossType = as.character(CrossType))
+
+
+## Female genotype
+m2 <- glmmTMB::glmmTMB(prop ~ CrossType, ziformula=~CrossType, dispformula = ~CrossType, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+summary(m2)
+
+
+## Compute confidence interval for m1
+## Refit model nsim times
+b1 <- lme4::bootMer(m2, FUN=function(fit) extract_model(fit, estimateCI = FALSE, estimate_response=TRUE, estimate_overdisp=TRUE, newdata=dat), nsim=500, .progress="txt")
+
+## Extract 95% CIs
+confint <- data.frame(bCI_tab(b=b1))
+
+confint <- confint |>
+  dplyr::rename(lower = X2.5.., upper = X97.5..) |>
+  dplyr::mutate(dplyr::across(c(Estimate, lower, upper), \(x) round(as.numeric(x), 3)))
+
+## Add sample size
+confint <- confint |>
+  tibble::rownames_to_column("Parameter") |>      # keep names such as "zi.AmxBal"
+  dplyr::mutate(CrossType = as.character(CrossType)) |>
+  dplyr::left_join(n_tab, by = "CrossType") |>
+  dplyr::relocate(n, .after = CrossType)
+
+
+write.table(
+  confint,
+  file = file.path(here::here(), "data", "derived_data", "TableS8a_BoostrapEstimtes.csv"),
+  row.names = FALSE,
+  sep=";"
+)
+
+```
+
+# Model selection for females genotypes crossed with Bal males
+```{r}
+
+merged_data |>
+ #dplyr::filter(Batch == 6 | Batch == 7)|>
+  dplyr::filter(CrossType %in% c("Mon47xBal", "Par7xBal"))|>
+  dplyr::pull(Batch)
+
+
+dat <- merged_data |>
+  dplyr::filter(Batch == 2)|>
+  dplyr::filter(CrossType %in% c("Mon47xBal", "AmxBal", "Par7xBal")) #47 rows
+
+
+## Null model
+m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
+## Female genotype
+m1 <- glmmTMB::glmmTMB(prop ~ Female, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+summary(m1)
+
+## Residuals of msat_bin_zi not OK, so model with betabinomial used for model selection
+plot(DHARMa::simulateResiduals(m1, n = 1000))
+
+MuMIn::model.sel(m0, m1)
+
+## Compare models based on AICc
+modelaicc <- data.frame(MuMIn::model.sel(m0, m1))
+modelaicc <- modelaicc |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3)))
+
+
+write.table(
+  tibble::rownames_to_column(as.data.frame(modelaicc), "model"),
+  file = file.path(here::here(), "data", "derived_data", "TableS8a_AICc_Balmalexfemale_genetic_effect.csv"),
+  row.names = FALSE,
+  sep=";"
+)
+
+```
+
+
+
+# Model selection for females genotypes crossed with Par6 males
+```{r}
+
+merged_data |>
+ #dplyr::filter(Batch == 6 | Batch == 7)|>
+  dplyr::filter(CrossType %in% c("AmxPar6", "Par7xPar6"))|>
+  dplyr::pull(Batch)
+
+
+dat <- merged_data |>
+  #dplyr::filter(Batch == 2)|>
+  dplyr::filter(CrossType %in% c("AmxPar6", "Par7xPar6")) #18 rows
+
+
+## Null model
+m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
+## Female genotype
+m1 <- glmmTMB::glmmTMB(prop ~ Female, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
+summary(m1)
+
+## Residuals of msat_bin_zi not OK, so model with betabinomial used for model selection
+plot(DHARMa::simulateResiduals(m1, n = 1000))
+
+MuMIn::model.sel(m0, m1)
+
+## Compare models based on AICc
+modelaicc <- data.frame(MuMIn::model.sel(m0, m1))
+modelaicc <- modelaicc |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3)))
+
+
+write.table(
+  tibble::rownames_to_column(as.data.frame(modelaicc), "model"),
+  file = file.path(here::here(), "data", "derived_data", "TableS8a_AICc_Par6malexfemale_genetic_effect.csv"),
+  row.names = FALSE,
+  sep=";"
+)
+
+```
+
+
+
+# Model selection for females genotypes crossed with Rennes males
+```{r}
+
+merged_data |>
+ #dplyr::filter(Batch == 6 | Batch == 7)|>
+  dplyr::filter(CrossType %in% c("AmxRennes", "Mon47xRennes"))|>
+  dplyr::pull(Batch)
+
+
+dat <- merged_data |>
+  #dplyr::filter(Batch == 2)|>
+  dplyr::filter(CrossType %in% c("AmxRennes", "Mon47xRennes")) #48 rows
+
+
+## Null model
+m0 <- glmmTMB::glmmTMB(prop ~ 1, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
+## Female genotype
+m1 <- glmmTMB::glmmTMB(prop ~ Female, ziformula=~1, dispformula = ~ 1, family=glmmTMB::betabinomial(), weights = sum_eggcount_corr, data=dat)
+
+summary(m1)
+
+## Residuals of msat_bin_zi not OK, so model with betabinomial used for model selection
+plot(DHARMa::simulateResiduals(m1, n = 1000))
+
+MuMIn::model.sel(m0, m1)
+
+## Compare models based on AICc
+modelaicc <- data.frame(MuMIn::model.sel(m0, m1))
+modelaicc <- modelaicc |>
+    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3)))
+
+
+write.table(
+  tibble::rownames_to_column(as.data.frame(modelaicc), "model"),
+  file = file.path(here::here(), "data", "derived_data", "TableS8a_AICc_Rennesmalexfemale_genetic_effect.csv"),
+  row.names = FALSE,
+  sep=";"
+)
+
+```
+
+
