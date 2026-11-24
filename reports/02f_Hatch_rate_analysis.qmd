@@ -196,5 +196,182 @@ write.table(
 )
 
 ```
+# Figure S7
+
+# Create a Figure S7 for female genetic effect
+
+```{r}
+
+#Load the data for hatch rate per Couple (506 rows)
+merged_data <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "Hatch_rate_CoupleID.csv"), sep=";", header = TRUE)) |>
+  dplyr::select(-CrossTypeLabel) |>
+  dplyr::select(-Couple_count) |>
+  dplyr::mutate(CrossType = as.factor(CrossType)) |>
+  dplyr::mutate(CoupleID =as.factor(CoupleID))
+
+# Choose crosstypes
+data2 <- merged_data |>
+ dplyr::filter(CrossType %in% c("Mon47xBal", "Par7xBal", "Par7xPar6", "Mon47xRennes" , "AmxBal", "AmxPar6", "AmxRennes"))
+
+# Combine all CrossTypes for one Pair
+data2 <- data2 %>%
+  dplyr::mutate(Pair = dplyr::case_when(
+    CrossType %in% c("Mon47xRennes", "AmxRennes") ~ "Rennes",
+    CrossType %in% c("AmxPar6", "Par7xPar6") ~ "Par6",
+    CrossType %in% c("AmxBal", "Mon47xBal", "Par7xBal") ~ "Bal",
+    TRUE ~ NA_character_ ))
+
+#Create order for Pairs
+pair_levels <- c("Bal", "Par6", "Rennes")
+
+# Convert the Pair variable to a factor with the specified order
+data2 <- data2 %>%
+  dplyr::mutate(Pair = factor(Pair, levels = pair_levels))
+
+#Count number of Couples  
+##Count the number of couples per CrossType
+cross_count <- data2 %>%
+  dplyr::group_by(CrossType) %>%
+  dplyr::summarise(Couple_count = dplyr::n())
+
+##Create a new label combining CrossType and the number of Couples
+cross_count <- cross_count |>
+  dplyr::mutate(CrossTypeLabel = paste0(CrossType, " " ,"(", Couple_count, ")" ))
+
+## Merge the new labels with the data
+data2 <- data2 |>
+  dplyr::left_join(cross_count, by = "CrossType")
+
+# Plot hatch_rate
+data2 %>%
+  dplyr::group_by(CrossTypeLabel) %>%
+  ggplot(aes(x = CrossTypeLabel, y = hatchrate)) +
+  geom_point() +
+  ggplot2::facet_grid(.~ Pair, scales = "free", space = "free", switch = "x") +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  labs(x = "Crosstype", y = "Hatch rate", title = "Hatch rate by Crosstype") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+# Add information from the beta-binomial model about median hatch rate for figure S7
+
+```{r}
+
+dataS6 <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "TableS8a_BoostrapEstimtes.csv"), sep=";", header = TRUE))
+
+# Keep the marginal mean hatch rate, (1 - zi) * cond  -> rows "res."
+dataS6 <- dataS6 |>
+  dplyr::filter(grepl("^cond\\.", Parameter)) |>
+  dplyr::select(CrossType, Estimate, lower, upper) |>
+  dplyr::rename(X2.5. = lower, X97.5. = upper)
+
+#Quick plot for the models results
+ggplot(dataS6, aes(x = CrossType, y = Estimate, color = infstrain)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = X2.5., ymax = X97.5.), width = 0.1) +
+  facet_wrap(~ infstrain, scales = "free_x") +
+  theme_bw()
+
+dataS6 <- dataS6 |>
+dplyr::distinct(CrossType, .keep_all = TRUE)
+
+# Add information about hatch rate to the dataset
+median_hatch_rate <- dplyr::left_join(x=data2, y=dataS6[, c("CrossType","Estimate", "X2.5.", "X97.5.")], by = "CrossType")
+
+median_hatch_rate <- median_hatch_rate |>
+  dplyr::mutate(Cross = dplyr::case_when(
+      CrossType %in% c( "AmxBal", "AmxPar6" , "AmxRennes")~ "Reference female genotype",
+      CrossType %in% c ( "Mon47xBal", "Par7xBal", "Par7xPar6", "Mon47xRennes") ~ "Alternative female genotype",
+      TRUE ~ Cross
+    ))
+
+median_hatch_rate_reduced <- median_hatch_rate |>
+  dplyr::distinct(CrossType, .keep_all = TRUE)
+
+median_hatch_rate_reduced <- median_hatch_rate_reduced |>
+dplyr::mutate(CrossType=factor(CrossType))
+
+median_hatch_rate <- median_hatch_rate |>
+  dplyr:: filter(!is.na(CrossTypeLabel))
+
+# Plot hatch_rate
+median_hatch_rate %>%
+  dplyr::group_by(CrossTypeLabel) %>%
+  ggplot(aes(x = CrossTypeLabel, y = hatchrate)) +
+  geom_point() +
+  ggplot2::facet_grid(.~ Pair, scales = "free", space = "free", switch = "x") +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  labs(x = "Crosstype", y = "Hatch rate", title = "Hatch rate by Crosstype") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## create an order 
+desired_order <- c(
+        "AmxBal (46)", "Mon47xBal (18)", "Par7xBal (10)",
+       "AmxPar6 (13)", "Par7xPar6 (34)",
+    "AmxRennes (29)", "Mon47xRennes (19)"
+   )
+
+# Reorder the rows according to the desired order of CrossType
+median_hatch_rate <- median_hatch_rate %>%
+  dplyr::mutate(CrossTypeLabel = factor(CrossTypeLabel, levels = desired_order)) 
+
+# Plot hatch_rate
+median_hatch_rate_reduced %>%
+  dplyr::group_by(CrossTypeLabel) %>%
+  ggplot(aes(x = CrossTypeLabel, y = Estimate)) +
+  geom_point() +
+  ggplot2::facet_grid(.~ Pair, scales = "free", space = "free", switch = "x") +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  labs(x = "Crosstype", y = "Hatch rate", title = "Hatch rate by Crosstype") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+# Create a Figure S7 
+```{r}
+
+## Creat the order for the graph
+median_hatch_rate_reduced$Pair <- factor(median_hatch_rate_reduced$Pair, levels=c("Bal", "Par6", "Rennes"))
+
+hatchrateplot4 <- median_hatch_rate_reduced |> 
+  ggplot2::ggplot(aes(x = CrossTypeLabel, y = Estimate, fill = Cross), size=100) +
+  #ggplot2::scale_x_discrete(labels = x_label_names) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = X2.5., ymax = X97.5.), width = 0.4) +
+  ggplot2::geom_point(data = median_hatch_rate, aes(x = CrossTypeLabel, y = hatchrate), position = position_jitter(width = 0.15, height = 0), size =3) + 
+  ggplot2::geom_text(aes(label = sprintf("%.2f", Estimate), y=1.2), vjust = 1.5, position = position_dodge(width = 0.9), size = 10) +
+  scale_fill_manual(values = c("Reference female genotype" = "salmon3", "Alternative female genotype" = "salmon")) +
+  labs(x = "Cross", y = "Hatch rate", title = "Median hatch rate and individual hatch rates per cross (female strain x male strain)", fill = "Female type") +
+  #ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
+  ggh4x::facet_nested(~Pair, scales = "free_x", space = "free_x") +
+  #ggplot2::facet_wrap(~ LineType + Pair_Type, ncol = 4, scales = "free_x", strip.position = "top", drop=FALSE, labeller = label_bquote( cols = Pair_Type)) +
+  ##ggplot2::facet_grid(Continent~Pair, switch = NULL, scales = "free", space = "fixed") +
+  theme_grey(base_size = 30) +
+  theme(plot.margin = margin(20, 20, 20, 20, "pt"),
+        #strip.background = element_blank(),  # Removes background from facet labels
+        strip.placement = "outside", 
+        axis.text.x = element_text(size=30, angle = 45, hjust = 1), #modify the text of the axis x
+        axis.text=element_text(size=20),
+        title = element_text(size = 0), #face="bold" makes it bold
+        axis.title=element_text(size=35,face="bold"),
+        legend.text=element_text(size = 30),
+        legend.title = element_text(size = 30),
+        legend.position = "top",
+        strip.text.x = element_text(size =45),
+        panel.grid.major.y = element_line(linetype = "dotted", color = "grey")) + # text for the subtitles/strips
+        theme(
+          panel.background = element_rect(fill = "white"),
+          legend.background = element_rect(fill = "white"),
+          legend.position = "top"
+          )
+
+#save bar plot
+title_plot <- "FigS7_female.pdf"
+cowplot::save_plot(file = here::here("plots", title_plot),
+                   hatchrateplot4, base_height = 40/cm(1),
+                   base_width = 100/cm(1), dpi = 1200)
+
+
+```
 
 

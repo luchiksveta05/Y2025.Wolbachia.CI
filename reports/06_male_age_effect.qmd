@@ -1,5 +1,5 @@
 ---
-title: "Effect of male age on hatch rate"
+title: "Testing effect of male age on hatch rate"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -39,9 +39,9 @@ dat_test_age <- dat_test_age |> dplyr::filter(Cross == "Test cross W- x W+" & !i
 
 table(dat_test_age$Male, dat_test_age$MaleAge)
 
-m_test_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_test_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+m_test_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male, data = dat_test_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
 
-m_test_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_test_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+m_test_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge, data = dat_test_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
 
 ### Convergence and model comparison
 
@@ -54,6 +54,40 @@ logLik(m_test_age)
 
 anova(m_test_no_age, m_test_age)
 MuMIn::model.sel(m_test_no_age, m_test_age, rank = "AICc")
+
+b_test <- boot_age(m_test_age, dat_test_age)
+
+```
+
+## Fit model for Control cross 3: all four lines
+
+```{r}
+
+dat_control_age <- dat_age |>
+  dplyr::filter(CrossType %in% c("AmxAm", "BalxBal", "AmxBal", "BalxAm", "TrentoxTrento", "AmxTrento", "TrentoxAm", "RennesxAm", "AmxRennes", "RennesxRennes", "AmxPar6","Par6xPar6", "Par6xAm"))
+
+dat_control_age <- dat_control_age |> dplyr::filter(Cross == "Control cross 3 W+ x W+" & !is.na(MaleAge))
+
+table(dat_control_age$Male, dat_control_age$MaleAge)
+
+m_control_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male, data = dat_control_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
+
+m_control_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge, data = dat_control_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
+
+### Convergence and model comparison
+
+m_control_no_age$sdr$pdHess
+m_control_age$sdr$pdHess
+
+summary(m_control_age)
+logLik(m_control_no_age)
+logLik(m_control_age)
+
+anova(m_control_no_age, m_control_age)
+MuMIn::model.sel(m_control_no_age, m_control_age, rank = "AICc")
+
+b_control <- boot_age(m_control_age, dat_control_age)
+
 ```
 
 ## Fit model for Test crosses: CI-lines only (Bal and Trento)
@@ -63,9 +97,9 @@ dat_CI_age <- dat_test_age |> dplyr::filter(Male %in% c("Bal", "Trento"))
 
 table(dat_CI_age$Male, dat_CI_age$MaleAge)
 
-m_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_CI_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+m_CI_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male, data = dat_CI_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
 
-m_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_CI_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+m_CI_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge, data = dat_CI_age, family = glmmTMB::betabinomial(), ziformula = ~1, dispformula = ~1, weights = sum_eggcount_corr)
 
 m_CI_no_age$sdr$pdHess
 m_CI_age$sdr$pdHess
@@ -76,58 +110,45 @@ logLik(m_CI_age)
 
 anova(m_CI_no_age, m_CI_age)
 MuMIn::model.sel(m_CI_no_age, m_CI_age, rank = "AICc")
+
+b_CI <- boot_age(m_CI_age, dat_CI_age) 
 ```
 
-## Fit model for Test crosses: Bal line only
+## Table S10
 
 ```{r}
-dat_Bal_age <- dat_test_age |> dplyr::filter(Male == "Bal") 
 
-table(dat_Bal_age$MaleAge)
+TableS10a <- rbind(model_sel_age(m_test_no_age,    m_test_age,    "Test crosses, all lines"),
+                   model_sel_age(m_CI_no_age,      m_CI_age,      "Test crosses, Bal and Trento"),
+                   model_sel_age(m_control_no_age, m_control_age, "Control cross 3, all lines"))
+names(TableS10b)[names(TableS10b) == "dAICc"] <- "ΔAICc"
+names(TableS10b)[names(TableS10b) == "Chisq"] <- "χ² (LRT)"
 
-m_Bal_no_age <- glmmTMB::glmmTMB(hatchrate ~ 1 + (1 | CoupleID), data = dat_Bal_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
 
-m_Bal_age <- glmmTMB::glmmTMB(hatchrate ~ MaleAge + (1 | CoupleID), data = dat_Bal_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
+TableS10b <- rbind(cbind(Type = "Test cross W- x W+",      b_test$pred),
+                   cbind(Type = "Control cross 3 W+ x W+", b_control$pred)) |>
+  dplyr::mutate(Male = factor(Male, levels = c("Trento", "Bal", "Rennes", "Par6"))) |>
+  dplyr::arrange(Male, Type != "Test cross W- x W+", MaleAge) |>
+  dplyr::transmute(Line = as.character(Male), `Cross (♀ × ♂)` = sub("x", " × ", CrossType),
+                   `Cross type` = Type, `Male age (days)` = MaleAge, n,
+                   `Mean hatch rate` = est, `Lower 95% CI` = lo, `Upper 95% CI` = hi)
 
-m_Bal_no_age$sdr$pdHess
-m_Bal_age$sdr$pdHess
 
-summary(m_Bal_age)
-logLik(m_Bal_no_age)
-logLik(m_Bal_age)
+TableS10c <- rbind(b_test$slope, b_CI$slope, b_control$slope) |>
+  dplyr::transmute(Analysis = c("Test crosses, all lines", "Test crosses, Bal and Trento",
+                                "Control cross 3, all lines"),
+                   Crosses  = c("W− ♀ × W+ ♂", "W− ♀ × W+ ♂", "W+ ♀ × W+ ♂"),
+                   n,
+                   `Odds ratio per day` = exp(est),
+                   `Lower 95% CI`       = exp(lo),
+                   `Upper 95% CI`       = exp(hi),
+                   n_ok)
 
-anova(m_Bal_no_age, m_Bal_age)
-MuMIn::model.sel(m_Bal_no_age, m_Bal_age, rank = "AICc")
+TableS10a; TableS10b; TableS10c
 
-```
+## Export files
+readr::write_excel_csv(TableS10a, file.path(here::here(), "data", "derived_data", "TableS10a_model_AICc.csv"), delim = ";")
+readr::write_excel_csv(TableS10b, file.path(here::here(), "data", "derived_data", "TableS10b_hatchrate_age.csv"), delim = ";")
+readr::write_excel_csv(TableS10c, file.path(here::here(), "data", "derived_data", "TableS10c_age_effect.csv"), delim = ";")
 
-## Control cross 3
-
-```{r}
-dat_control3_age <- dat_age |>
-  dplyr::filter(CrossType %in% c("BalxBal", "TrentoxTrento",  "RennesxRennes", "Par6xPar6")) 
-
-table(dat_control3_age$Male, dat_control3_age$MaleAge)
-
-m_control3_no_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + (1 | CoupleID), data = dat_control3_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
-
-m_control3_age <- glmmTMB::glmmTMB(hatchrate ~ -1 + Male + MaleAge + (1 | CoupleID), data = dat_control3_age, ziformula = ~1, family = binomial, weights = sum_eggcount_corr)
-
-m_control3_no_age$sdr$pdHess
-m_control3_age$sdr$pdHess
-
-summary(m_control3_age)
-logLik(m_control3_no_age)
-logLik(m_control3_age)
-
-anova(m_control3_no_age, m_control3_age)
-MuMIn::model.sel(m_control3_no_age, m_control3_age, rank = "AICc")
-```
-
-## Summary of observed hatch rates
-
-```{r}
-dat_test_age |> dplyr::group_by(Male, MaleAge) |> dplyr::summarise(n = dplyr::n(), mean_hatchrate = mean(hatchrate, na.rm = TRUE), median_hatchrate = median(hatchrate, na.rm = TRUE), .groups = "drop")
-
-dat_control3_age |> dplyr::group_by(Male, MaleAge) |> dplyr::summarise(n = dplyr::n(), mean_hatchrate = mean(hatchrate, na.rm = TRUE), median_hatchrate = median(hatchrate, na.rm = TRUE), .groups = "drop")
 ```
