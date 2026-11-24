@@ -1,5 +1,5 @@
 ---
-title: "Analysis of the hatch rate female effects Appendix S6, Table S8"
+title: "Analysis of the hatch rate female effects Appendix S7, Table S8"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -366,7 +366,7 @@ hatchrateplot4 <- median_hatch_rate_reduced |>
           )
 
 #save bar plot
-title_plot <- "FigS7_female.pdf"
+title_plot <- "Fig.S8.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplot4, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)

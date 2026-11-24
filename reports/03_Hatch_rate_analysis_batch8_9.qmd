@@ -544,7 +544,7 @@ plt <- ggplot2::ggplot(males, aes(x = CrossType, y = pred)) +
 
 
 #save bar plot
-title_plot <- "BLUPS_Par6_Bal_F1_F2.png"
+title_plot <- "Fig.S7.png"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    plt, base_height = 12/cm(1),
                    base_width = 10/cm(1), dpi = 1200)
@@ -813,11 +813,7 @@ pBal <- ggplot() +
 
 
 pBal
-#save bar plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Balv3.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
+
 ```
 
 
@@ -900,40 +896,6 @@ pBal1 <- ggplot() +
   theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal1
-#save bar plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_cytopl.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal1, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
-
-# Only for F1
-
-dat2<- dat |>
-  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
-
-## Predicted embryo mortality for cytoplasmic effect
-
-pBal1_F1 <- ggplot() +
-  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat2, aes(x = prop_Bal, y = cytopl, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
-  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Cytoplasmic effect") +
-  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
-  theme_classic() +
-  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
-
-pBal1_F1
-#save bar plot
-title_plot <- "Mortality_rate_F1_F2_Par6_Bal_cytopl_F1.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal1_F1, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
 
 ```
 
@@ -1019,37 +981,7 @@ pBal2 <- ggplot() +
   theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal2
-#save bar plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_dominant.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal2, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
-# Only for F1
 
-dat2<- dat |>
-  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
-
-pBal2_F1 <- ggplot() +
-  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat2, aes(x = prop_Bal, y = dominance, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
-  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "Recessive effect") +
-  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
-  theme_classic() +
-  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
-
-pBal2_F1
-#save bar plot
-title_plot <- "Mortality_rate_F1_F2_Par6_Bal_dominant_F1.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal2_F1, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
 ```
 
 ## Plot for predicted F1 and F2 with X effect Par6 / Bal
@@ -1125,38 +1057,6 @@ pBal3 <- ggplot() +
   theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal3
-#save bar plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_X.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal3, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
-
-#Only for F1
-
-dat2<- dat |>
-  dplyr::filter(Cross%in%c("P1", "P2", "F1" ))
-
-pBal3_F1 <- ggplot() +
-  geom_line(data = newdata, aes(x = prop_Bal, y = pred.mortality), color = "black", alpha = 0.6, linewidth = 1.5) +
-  geom_point(data = dat2, aes(x = prop_Bal, y = X, fill = Strain), size = 25, shape = 21, alpha = 0.6, color = "black", stroke = 1.5) +
-  geom_text(data = dat2, aes(x = label_x, y = label_y, label = Strain_label, color = Strain), size = 10, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_fill_manual(values = c("Par6" = "#A58AFF", "Bal" = "#F8766D", "F1 Par6xBal" = "royalblue", "F1 BalxPar6" = "#00C094", "F2 Par6xBalxPar6xBal" = "#53B400", "F2 BalxPar6xBalxPar6" = "violet")) +
-  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0",  "0.5", "1"), expand = c(0.02, 0)) +
-  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5","1"), expand = c(0, 0.02)) +
-  labs(x = "Proportion of Bal genes", y = "Embryo mortality in test cross", title = "X-linked effect") +
-  annotate("segment", x = -0.1, xend = 1.03, y = 0, yend = 0, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  annotate("segment", x = -0.1, xend = -0.1, y = 0, yend = 1.03, arrow = arrow(length = unit(0.6, "cm")), linewidth = 1.2, color = "black") +
-  coord_cartesian(xlim = c(-0.1, 1.03), ylim = c(0, 1.03), clip = "off") +
-  theme_classic() +
-  theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
-
-pBal3_F1
-#save bar plot
-title_plot <- "Mortality_rate_F1_F2_Par6_Bal_X_F1.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal3_F1, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
 
 ```
 ## Plot for predicted Y effect
@@ -1238,11 +1138,6 @@ pBal4 <- ggplot() +
   theme(plot.title = element_text(size = 60, face = "bold", hjust = 0.5, margin = margin(b = 20)), plot.margin = margin(t = 40, r = 60, b = 40, l = 40), axis.text = element_text(size = 40, color = "black"), axis.title = element_text(size = 50, face = "bold", color = "black"), axis.title.x = element_text(margin = margin(t = 20)), axis.title.y = element_text(margin = margin(r = 20)), axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none")
 
 pBal4
-#save bar plot
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_Y.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pBal4, base_height = 30/cm(1),
-                   base_width = 40/cm(1), dpi = 1200)
 
 ```
 
@@ -1272,8 +1167,7 @@ combined_plot <- cowplot::ggdraw() + cowplot::draw_plot(cowplot::plot_grid(top_p
 
 combined_plot
 
-title_plot <- "Hatch_rate_F1_F2_Par6_Bal_all_3.pdf"
+title_plot <- "Fig.5.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), combined_plot, base_height = 120/cm(1), base_width = 120/cm(1), dpi = 1200)
-
 
 ```

@@ -1,5 +1,5 @@
 ---
-title: "Analysis of the hatch rate for male genetic effect (introgression experiment), Appendix S5, Table S6"
+title: "Analysis of the hatch rate for male genetic effect (introgression experiment), Appendix S6, Table S6"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -218,7 +218,7 @@ x_label_names <- c(
           )+ylim(0, 1.1)
 
 #save bar plot
-title_plot <- "FigS5_introgr.pdf"
+title_plot <- "Fig.S6.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplotS5, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)

@@ -420,7 +420,7 @@ p_final <- p +
 p_final
 
 ##Save the plot
-ggsave(file.path(here::here(), "plots", "Fig.4C_Wol_phylogeny.pdf"), plot = p_final, width = 19, height = 10, units = "cm")
+ggsave(file.path(here::here(), "plots", "Fig.4C.pdf"), plot = p_final, width = 19, height = 10, units = "cm")
 
 ```
 

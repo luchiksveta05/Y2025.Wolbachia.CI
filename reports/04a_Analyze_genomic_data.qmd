@@ -83,7 +83,7 @@ p <- gggenomes(seqs = contig_lengths, genes = cif_loci_plot) + geom_seq(linewidt
 
 p
 
-title_plot <- "Fig.4A_wSuz_genome.pdf"
+title_plot <- "Fig.4A.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot), p, base_height = 10/cm(1), base_width = 14/cm(1), dpi = 1200)
 
 ```

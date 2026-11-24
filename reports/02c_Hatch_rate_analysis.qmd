@@ -1,5 +1,5 @@
 ---
-title: "Analysis of the hatch rate in rescue experiment Appendix S4, Table S5"
+title: "Analysis of the hatch rate in rescue experiment Appendix S5, Table S5"
 author: "Svitlana Serga, Nicolas O. Rode"
 date: "`r format(Sys.Date(), '%d-%B-%Y')`"
 format:
@@ -220,7 +220,7 @@ hatchrateplot3 <- median_hatch_rate_reduced |>
           )
 
 #save bar plot
-title_plot <- "Fig_S3_rescue.pdf"
+title_plot <- "Fig.S4.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplot3, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)

@@ -193,7 +193,7 @@ hatchrateplotS1 <- median_hatch_rate_reduced |>
           )+ylim(0, 1.1)
 
 #save bar plot
-title_plot <- "FigS1_tetr.pdf"
+title_plot <- "Fig.S1.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    hatchrateplotS1, base_height = 40/cm(1),
                    base_width = 100/cm(1), dpi = 1200)

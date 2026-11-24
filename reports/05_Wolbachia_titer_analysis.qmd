@@ -1,13 +1,14 @@
 ---
 title: "05_Wolbachia_titer_analysis"
 author: "Svitlana Serga, Nicolas O. Rode"
-date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+date: today
+date-format: "DD-MMMM-YYYY"
 format:
   html:
     toc: true
     toc-location: left
     number-sections: true
-embed-resources: true
+    embed-resources: true
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
@@ -84,7 +85,7 @@ write.table(x = data_mean, file=file.path(here::here(), "data", "derived_data", 
 
 ```
                       
-# Difference between four lines naturallu infected with Wolbachia
+# Difference between four lines naturally infected with Wolbachia
 ```{r}
 
 #Filter only naturally infected lines
@@ -103,21 +104,32 @@ p_diag <- ggplotify::as.ggplot(function() {
   graphics::plot(m)
 })
 
-cowplot::save_plot(file = here::here("plots", "model_diagnostics_titers.pdf"),
-                   p_diag, base_height = 13.5/cm(1),
-                   base_width = 16/cm(1), dpi = 1200)
-
 ## Pairwise comparisons, back-transformed to fold differences
 
 library(emmeans)
-em <- emmeans(m, ~ Strain, type = "response")
-em
-pw <- pairs(em, adjust = "tukey")
-tab_pw <- merge(as.data.frame(summary(pw)),
-                as.data.frame(confint(pw))[, c("contrast", "lower.CL", "upper.CL")],
-                by = "contrast", sort = FALSE)
+## Estimated marginal means on the log10 scale
+em <- emmeans::emmeans(m, ~ Strain)
 
-write.csv2(tab_pw, here::here("data", "derived_data", "titer_pairwise.csv"), row.names = FALSE)
+em
+## Tukey pairwise comparisons
+pw <- emmeans::contrast(em, method = "pairwise", adjust = "tukey")
+
+## Ratios (fold differences) with Tukey-adjusted CIs and p-values in one table
+tab_pw <- summary(pw, infer = c(TRUE, TRUE), type = "response") |>
+  as.data.frame() |>
+  dplyr::transmute(
+    Contrast       = contrast,          # e.g. "Trento / Bal"
+    Fold_difference = ratio,
+    Lower_95CI     = lower.CL,
+    Upper_95CI     = upper.CL,
+    df             = df,
+    t_ratio        = t.ratio,
+    p_Tukey        = p.value
+  ) |>
+  dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, 3)))
+
+tab_pw
+write.csv(tab_pw, here::here("data", "derived_data", "Table_S4.csv"), row.names = FALSE)
 
 ```
                       
@@ -169,7 +181,7 @@ p
 
 
 #Save the plot
-title_plot <- "Fig3_titers3.pdf"
+title_plot <- "Fig.3.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    p, base_height = 13.5/cm(1),
                    base_width = 16/cm(1), dpi = 1200)
@@ -194,10 +206,6 @@ p_diag <- ggplotify::as.ggplot(function() {
   graphics::par(mfrow = c(2, 2))
   graphics::plot(m)
 })
-
-cowplot::save_plot(file = here::here("plots", "model_diagnostics_titers_introgression.pdf"),
-                   p_diag, base_height = 13.5/cm(1),
-                   base_width = 16/cm(1), dpi = 1200)
 
 
 ```
@@ -237,86 +245,11 @@ p
 
 
 #Save the plot
-title_plot <- "FigS4_titers_introgressed.pdf"
+title_plot <- "Fig.S5.pdf"
 cowplot::save_plot(file = here::here("plots", title_plot),
                    p, base_height = 13.5/cm(1),
                    base_width = 16/cm(1), dpi = 1200)
 
 
 ```
-# Correlation between hatch rate in test cross and Wolbachia density
 
-```{r}
-
-#Load hatch rate data from zero-inflated model
-data2 <- tibble::as_tibble(read.table(file = file.path(here::here(), "data", "derived_data", "confint2_Europe.csv"), sep=";", header = TRUE))
-
-data2 <- data2 |>
-  dplyr::mutate(CrossType = sub(".*CrossType", "", type))
-
-data2 <- data2 |>
-dplyr::distinct(CrossType, .keep_all = TRUE)
-
-data2 <- data2 |>
-  dplyr::filter(CrossType %in% c("AmxBal", "AmxTrento", "AmxPar6","AmxRennes"))
-  
-# Merge mean density and median hatch rate
-data_density <- data2 %>%
-  dplyr::left_join(data_mean %>% dplyr::select(Strain, mean_titer, ci_low, ci_high, CI), by = c("infstrain" = "Strain"))
-
-#Plot a correlation
-pTit <- ggplot(data_density, aes(x = mean_titer, y = Estimate)) +
-  geom_point(aes(color = CI), size = 3, alpha = 0.9) +  # Points colored by CI status
-  geom_errorbarh(
-    aes(
-      xmin = ci_low,
-      xmax = ci_high,
-      color = CI
-    ),
-    height = 0.02,   # thickness of horizontal bars
-    alpha = 0.7
-  ) +
-  # Vertical error bars for hatch rate (y)
-  geom_errorbar(
-    aes(
-      ymin = X2.5.,
-      ymax = X97.5.,
-      color = CI
-    ),
-    width = 1.7,    # width of the "cap" on vertical bars
-    alpha = 0.7
-  ) +
-  ggrepel::geom_text_repel(data = data_density |> dplyr::filter(!infstrain %in% c("Par6", "Rennes")), aes(label = infstrain), color = "black", alpha = 0.7, size = 5, nudge_x = 7, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
-ggrepel::geom_text_repel(data = data_density |> dplyr::filter(infstrain == "Par6"), aes(label = infstrain), color = "black", alpha = 0.7, size = 5, nudge_x = -5, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
-ggrepel::geom_text_repel(data = data_density |> dplyr::filter(infstrain == "Rennes"), aes(label = infstrain), color = "black", alpha = 0.7, size = 5, nudge_x = 8, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
-  #ggrepel::geom_text_repel(aes(label = infstrain, color = "black"),size = 5, nudge_x = 7, nudge_y = 0.05, show.legend = FALSE, segment.color = NA) +
-  ggpubr::stat_cor(method = "pearson", label.x = 0.1, label.y = 0.9) +  # Spearman correlation coefficient
-  scale_color_manual(values = c("CI" = "sienna1", "no CI" = "yellow3")) +  # Custom colors
-  labs(
-    x = expression(italic("Wolbachia")~" titer"),
-    y = "Hatch rate in test cross (CI strength)",
-    color = "CI status"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "right",
-    axis.text = element_text(size = 12),
-    axis.title = element_text(size = 14, face = "bold"),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
-  )
-
-#Save the plot
-title_plot <- "Figure_3_titers.pdf"
-cowplot::save_plot(file = here::here("plots", title_plot),
-                   pTit, base_height = 13.5/cm(1),
-                   base_width = 16/cm(1), dpi = 1200)
-
-#Save mean Wolbachia titer estimation
-write.table(x = data_density, file=file.path(here::here(), "data", "derived_data", "Wolb_mean_titer.csv"), sep=";", row.names = FALSE)
-
-#Check the correlation
-
-corr<- cor.test(x=1:4,y=1:4, method = "pearson")
-cor.test(data_density$mean_titer, data_density$Estimate, method = "pearson", exact = FALSE)
-
-```
